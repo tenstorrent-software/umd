@@ -61,13 +61,13 @@ TEST(SiliconDriverGS, HarvestingRuntime) {
         // Iterate over devices and only setup static TLBs for functional worker cores
         auto& sdesc = device.get_virtual_soc_descriptors().at(i);
         for(auto& core : sdesc.workers) {
-            // Statically mapping a 1MB TLB to this core, starting from address DATA_BUFFER_SPACE_BASE. 
+            // Statically mapping a 1MB TLB to this core, starting from address DATA_BUFFER_SPACE_BASE.
             device.configure_tlb(i, core, get_static_tlb_index(core), l1_mem::address_map::DATA_BUFFER_SPACE_BASE);
         }
     }
 
     device.setup_core_to_tlb_map(get_static_tlb_index);
-    
+
     tt_device_params default_params;
     device.start_device(default_params);
     device.clean_system_resources();
@@ -110,8 +110,8 @@ TEST(SiliconDriverGS, HarvestingRuntime) {
             dynamic_write_address += 0x20;
         }
     }
-    device.close_device();  
-    unsetenv("TT_BACKEND_HARVESTED_ROWS");  
+    device.close_device();
+    unsetenv("TT_BACKEND_HARVESTED_ROWS");
 }
 
 TEST(SiliconDriverGS, StaticTLB_RW) {
@@ -123,7 +123,7 @@ TEST(SiliconDriverGS, StaticTLB_RW) {
         return flat_index;
     };
     std::set<chip_id_t> target_devices = {0, 1};
-    
+
     std::unordered_map<std::string, std::int32_t> dynamic_tlb_config = {}; // Don't set any dynamic TLBs in this test
     uint32_t num_host_mem_ch_per_mmio_device = 1;
     tt_SiliconDevice device = tt_SiliconDevice("./tests/soc_descs/grayskull_10x12.yaml", "", target_devices, num_host_mem_ch_per_mmio_device, dynamic_tlb_config);
@@ -131,13 +131,13 @@ TEST(SiliconDriverGS, StaticTLB_RW) {
         // Iterate over devices and only setup static TLBs for worker cores
         auto& sdesc = device.get_virtual_soc_descriptors().at(i);
         for(auto& core : sdesc.workers) {
-            // Statically mapping a 1MB TLB to this core, starting from address DATA_BUFFER_SPACE_BASE. 
+            // Statically mapping a 1MB TLB to this core, starting from address DATA_BUFFER_SPACE_BASE.
             device.configure_tlb(i, core, get_static_tlb_index(core), l1_mem::address_map::DATA_BUFFER_SPACE_BASE);
         }
     }
 
     device.setup_core_to_tlb_map(get_static_tlb_index);
-    
+
     tt_device_params default_params;
     device.start_device(default_params);
     device.clean_system_resources();
@@ -171,7 +171,7 @@ TEST(SiliconDriverGS, StaticTLB_RW) {
             address += 0x20; // Increment by uint32_t size for each write
         }
     }
-    device.close_device();    
+    device.close_device();
 }
 
 TEST(SiliconDriverGS, DynamicTLB_RW) {
@@ -230,7 +230,7 @@ TEST(SiliconDriverGS, MultiThreadedDevice) {
     uint32_t num_host_mem_ch_per_mmio_device = 1;
     dynamic_tlb_config.insert({"SMALL_READ_WRITE_TLB", 157}); // Use this for all reads and writes to worker cores
     tt_SiliconDevice device = tt_SiliconDevice("./tests/soc_descs/grayskull_10x12.yaml", "", target_devices, num_host_mem_ch_per_mmio_device, dynamic_tlb_config);
-    
+
     tt_device_params default_params;
     device.start_device(default_params);
     device.clean_system_resources();
@@ -289,5 +289,18 @@ TEST(SiliconDriverGS, MultiThreadedDevice) {
 
     th1.join();
     th2.join();
+    device.close_device();
+}
+
+TEST(SiliconDriverGS, LuwenIntegrationTest) {
+    std::cout << "Running Luwen Integration Test" << std::endl;
+    std::set<chip_id_t> target_devices = {0};
+
+    std::unordered_map<std::string, std::int32_t> dynamic_tlb_config = {};
+    uint32_t num_host_mem_ch_per_mmio_device = 1;
+    dynamic_tlb_config.insert({"SMALL_READ_WRITE_TLB", 157}); // Use this for all reads and writes to worker cores
+
+    tt_SiliconDevice device = tt_SiliconDevice("./tests/soc_descs/grayskull_10x12.yaml", "", target_devices, num_host_mem_ch_per_mmio_device, dynamic_tlb_config);
+
     device.close_device();
 }

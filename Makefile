@@ -47,12 +47,13 @@ init:
 	echo $(LIBDIR)
 	mkdir -p $(OUT)
 	mkdir -p $(INCDIR)
+	mkdir -p $(LIBDIR)
 	cp $(UMDHEADERS) $(INCDIR)
 build: init umd_device
 
 test: build $(TEST_TARGETS)
 run: test
-	LD_LIBRARY_PATH=$(LIBDIR) ./$(OUT)/tests/device_unit_tests
+	LD_LIBRARY_PATH=$(LIBDIR) ./$(OUT)/tests/device_unit_tests --gtest_catch_exceptions
 run-galaxy: test
 	LD_LIBRARY_PATH=$(LIBDIR) ./$(OUT)/tests/galaxy_unit_tests
 

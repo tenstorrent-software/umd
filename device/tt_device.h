@@ -10,6 +10,7 @@
 #include "tt_xy_pair.h"
 #include "tt_silicon_driver_common.hpp"
 #include "device/tt_cluster_descriptor_types.h"
+#include "luwen_impl.h"
 
 namespace boost::interprocess{
     class named_mutex;
@@ -256,7 +257,7 @@ class tt_device
         throw std::runtime_error("---- tt_device:using_harvested_soc_descriptors is not implemented\n");
         return 0;
     }
-    
+
     virtual std::unordered_map<chip_id_t, uint32_t> get_harvesting_masks_for_soc_descriptors() {
         throw std::runtime_error("---- tt_device:get_harvesting_masks_for_soc_descriptors is not implemented\n");
     }
@@ -378,7 +379,7 @@ class tt_SiliconDevice: public tt_device
     public:
     // Constructor
     tt_SiliconDevice(const std::string &sdesc_path, const std::string &ndesc_path = "", const std::set<chip_id_t> &target_devices = {}, const uint32_t &num_host_mem_ch_per_mmio_device = 1, const std::unordered_map<std::string, std::int32_t>& dynamic_tlb_config_ = {}, const bool skip_driver_allocs = false, bool perform_harvesting = true);
-    
+
     //Setup/Teardown Functions
     virtual std::unordered_map<chip_id_t, tt_SocDescriptor>& get_virtual_soc_descriptors();
     virtual void set_device_l1_address_params(const tt_device_l1_address_params& l1_address_params_);
@@ -478,9 +479,11 @@ class tt_SiliconDevice: public tt_device
     void write_device_memory(const uint32_t *mem_ptr, uint32_t len, tt_cxy_pair target, std::uint32_t address, const std::string& fallback_tlb);
     void read_device_memory(uint32_t *mem_ptr, tt_cxy_pair target, std::uint32_t address, std::uint32_t size_in_bytes, const std::string& fallback_tlb);
     void write_to_non_mmio_device(const uint32_t *mem_ptr, uint32_t len, tt_cxy_pair core, uint64_t address);
+    void write_to_non_mmio_device(const uint32_t *mem_ptr, uint32_t len, const chip_id_t mmio_capable_chip, const eth_coord_t target_chip, tt_xy_pair core, uint64_t address);
     void write_to_non_mmio_device_send_epoch_cmd(const uint32_t *mem_ptr, uint32_t len, tt_cxy_pair core, uint64_t address, bool last_send_epoch_cmd);
     void rolled_write_to_non_mmio_device(const uint32_t *mem_ptr, uint32_t len, tt_cxy_pair core, uint64_t address, uint32_t unroll_count);
     void read_from_non_mmio_device(uint32_t* mem_ptr, tt_cxy_pair core, uint64_t address, uint32_t size_in_bytes);
+    void read_from_non_mmio_device(uint32_t* mem_ptr, const chip_id_t mmio_capable_chip, const eth_coord_t target_chip, tt_xy_pair core, uint64_t address, uint32_t size_in_bytes);
     uint64_t get_sys_addr(uint32_t chip_x, uint32_t chip_y, uint32_t noc_x, uint32_t noc_y, uint64_t offset);
     uint16_t get_sys_rack(uint32_t rack_x, uint32_t rack_y);
     bool is_non_mmio_cmd_q_full(uint32_t curr_wptr, uint32_t curr_rptr);
@@ -543,8 +546,11 @@ class tt_SiliconDevice: public tt_device
     std::unordered_map<std::string, std::int32_t> dynamic_tlb_config = {};
     std::uint64_t buf_physical_addr = 0;
     void * buf_mapping = nullptr;
-    int driver_id;  
+    int driver_id;
     bool perform_harvesting_on_sdesc = false;
+
+    friend class DeviceRef;
+    std::unordered_map<chip_id_t, LuwenChip> platform;
 };
 
 tt::ARCH detect_arch(uint16_t device_id = 0);

@@ -22,7 +22,7 @@ ifeq ("$(ARCH_NAME)", "wormhole_b0")
   GALAXY_UNIT_TESTS_SRCS = $(addsuffix .cpp, $(GALAXY_UNIT_TESTS))
 endif
 
-DEVICE_UNIT_TESTS_LDFLAGS = -L$(LIBDIR) -ldevice -lyaml-cpp -lhwloc -lgtest -lgtest_main -lpthread
+DEVICE_UNIT_TESTS_LDFLAGS = -L$(LIBDIR) -ldevice -lyaml-cpp -lhwloc -lgtest -lgtest_main -lpthread -lluwen_umd
 
 DEVICE_UNIT_TESTS_OBJS = $(addprefix $(OBJDIR)/, $(DEVICE_UNIT_TESTS_SRCS:.cpp=.o))
 DEVICE_UNIT_TESTS_DEPS = $(addprefix $(OBJDIR)/, $(DEVICE_UNIT_TESTS_SRCS:.cpp=.d))

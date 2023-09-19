@@ -40,7 +40,7 @@ class tt_ClusterDescriptor {
    * An empty result implies that the two chips do not share any direct connection
    */
   std::vector<std::tuple<ethernet_channel_t, ethernet_channel_t>> get_directly_connected_ethernet_channels_between_chips(const chip_id_t &first, const chip_id_t &second) const;
-  
+
   bool channels_are_directly_connected(const chip_id_t &first, const ethernet_channel_t &first_channel, const chip_id_t &second, const ethernet_channel_t &second_channel) const;
   bool is_chip_mmio_capable(const chip_id_t &chip_id) const;
   chip_id_t get_closest_mmio_capable_chip(const chip_id_t &chip) const;

@@ -3,7 +3,7 @@
 
 #include <fstream>
 #include <memory>
-#include <sstream> 
+#include <sstream>
 
 #include "common/assert.hpp"
 #include "yaml-cpp/yaml.h"
@@ -58,7 +58,7 @@ bool tt_ClusterDescriptor::channels_are_directly_connected(const chip_id_t &firs
     }
 
     const auto &[connected_chip, connected_channel] = this->ethernet_connections.at(first).at(first_channel);
-    return connected_chip == second && connected_channel == second_channel;   
+    return connected_chip == second && connected_channel == second_channel;
 }
 
 // const eth_coord_t tt_ClusterDescriptor::get_chip_xy(const chip_id_t &chip_id) const {
@@ -181,7 +181,7 @@ void tt_ClusterDescriptor::load_chips_from_connectivity_descriptor(YAML::Node &y
         desc.chip_locations.insert({chip_id, chip_location});
         desc.all_chips.insert(chip_id);
     }
-    
+
     for(const auto& chip : yaml["chips_with_mmio"]) {
         if(chip.IsMap()) {
             desc.chips_with_mmio.insert(chip.as<std::map<int, int>>().begin() -> first);
@@ -226,8 +226,8 @@ void tt_ClusterDescriptor::enable_all_devices() {
     this->enabled_active_chips = this->all_chips;
 }
 
-bool tt_ClusterDescriptor::chips_have_ethernet_connectivity() const { 
-    return ethernet_connections.size() > 0; 
+bool tt_ClusterDescriptor::chips_have_ethernet_connectivity() const {
+    return ethernet_connections.size() > 0;
 }
 
 
@@ -251,7 +251,10 @@ std::unordered_map<chip_id_t, std::unordered_map<ethernet_channel_t, std::tuple<
 std::unordered_map<chip_id_t, eth_coord_t> tt_ClusterDescriptor::get_chip_locations() const {
     auto locations = std::unordered_map<chip_id_t, eth_coord_t>();
     for (auto chip_id : this->enabled_active_chips) {
-        locations[chip_id] = chip_locations.at(chip_id);
+        auto location = chip_locations.find(chip_id);
+        if (location != chip_locations.end()) {
+            locations[chip_id] = location->second;
+        }
     }
 
     return locations;

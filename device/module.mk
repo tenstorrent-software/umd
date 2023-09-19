@@ -3,6 +3,8 @@ DEVICE_BUILDDIR = $(OUT)
 UMD_DEVICE_LIB = $(LIBDIR)/libdevice.so
 DEVICE_OBJDIR = $(OBJDIR)
 DEVICE_SRCS = \
+  device/pci_comms.cpp \
+  device/luwen_impl.cpp \
 	device/tt_device.cpp \
 	device/tt_silicon_driver.cpp \
 	device/tt_silicon_driver_common.cpp \
@@ -57,7 +59,7 @@ DEVICE_LDFLAGS = \
 
 ifneq ($(UMD_VERSIM_STUB),1)
 # Build Versim  based on configs specified in Buda or Metal build flow
-# For this UMD_VERSIM_HEADERS and UMD_USER_ROOT must be specified 
+# For this UMD_VERSIM_HEADERS and UMD_USER_ROOT must be specified
 DEVICE_INCLUDES+=      	\
   -I$(UMD_VERSIM_HEADERS)$(ARCH_NAME)/headers/vendor/tenstorrent-repositories/verilator/include         \
   -I$(UMD_VERSIM_HEADERS)$(ARCH_NAME)/headers/vendor/tenstorrent-repositories/verilator/include/vltstd  \
@@ -78,15 +80,15 @@ DEVICE_INCLUDES+=      	\
   -I$(UMD_VERSIM_HEADERS)$(ARCH_NAME)/headers/src/tvm/inc                                               \
   -I$(UMD_VERSIM_HEADERS)$(ARCH_NAME)/headers/usr_include                                               \
   -I$(UMD_VERSIM_HEADERS)$(ARCH_NAME)/headers \
-  
+
   ifeq ("$(ARCH_NAME)", "wormhole_b0")
     DEVICE_INCLUDES += -I$(UMD_USER_ROOT)/src/firmware/riscv/wormhole
     DEVICE_INCLUDES += -I$(UMD_USER_ROOT)/src/firmware/riscv/wormhole/wormhole_b0_defines
   else
-    DEVICE_INCLUDES += -I$(UMD_USER_ROOT)/src/firmware/riscv/$(ARCH_NAME)   
+    DEVICE_INCLUDES += -I$(UMD_USER_ROOT)/src/firmware/riscv/$(ARCH_NAME)
   endif
 
-  
+
   DEVICE_LDFLAGS += \
     -lpthread \
     -latomic
@@ -126,7 +128,7 @@ DEVICE_CXX ?= /usr/bin/clang++-6.0
 -include $(DEVICE_DEPS)
 
 # Each module has a top level target as the entrypoint which must match the subdir name
-umd_device: $(UMD_DEVICE_LIB) 
+umd_device: $(UMD_DEVICE_LIB)
 clean_umd_device:
 	rm -rf $(DEVICE_BUILDDIR)
 
