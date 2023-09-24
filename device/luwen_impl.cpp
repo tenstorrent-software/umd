@@ -18,6 +18,10 @@ luwen::DeviceInfo device_info_func(void *user_data) {
         pci_device->dwBus,
         pci_device->dwSlot,
         pci_device->dwFunction,
+
+        pci_device->vendor_id,
+        pci_device->device_id,
+        pci_device->BAR_size_bytes,
     };
 }
 

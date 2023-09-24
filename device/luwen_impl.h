@@ -8,7 +8,7 @@ struct Chip;
 struct DeviceInfo;
 }
 
-#include "luwen.h"
+#include <luwen.h>
 
 #include "tt_arch_types.h"
 #include "tt_soc_descriptor.h"

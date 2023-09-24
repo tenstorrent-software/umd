@@ -1,3 +1,6 @@
 [submodule "third_party/fmt"]
 	path = third_party/fmt
 	url = https://github.com/fmtlib/fmt.git
+[submodule "third_party/luwen"]
+	path = third_party/luwen
+	url = git@yyz-gitlab.local.tenstorrent.com:syseng-platform/luwen.git

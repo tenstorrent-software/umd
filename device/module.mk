@@ -55,7 +55,8 @@ endif
 
 DEVICE_LDFLAGS = \
     -lyaml-cpp \
-    -lhwloc
+    -lhwloc \
+    -lluwencpp
 
 ifneq ($(UMD_VERSIM_STUB),1)
 # Build Versim  based on configs specified in Buda or Metal build flow
