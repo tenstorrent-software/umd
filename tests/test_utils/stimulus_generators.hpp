@@ -415,7 +415,7 @@ static inline std::vector<destination_t> generate_core_index_locations(tt_Cluste
 }
 
 // Add a default test harness that can be invoked with custom distributions only.
-static void print_command(remote_transfer_sample_t const& command) {
+static void print_command(remote_transfer_sample_t const& command, bool last_command) {
     RemoteTransferType transfer_type = std::get<0>(command);
     switch (transfer_type) {
         case RemoteTransferType::WRITE: {
@@ -443,7 +443,7 @@ static void print_command(remote_transfer_sample_t const& command) {
             std::cout << "Transfer type: EPOCH_CMD_WRITE, destination: (c=" << command_args.destination.chip
                         << ", y=" << command_args.destination.y << ", x=" << command_args.destination.x
                         << "), address: " << command_args.address << ", size_in_bytes: " << command_args.size_in_bytes
-                        << ", last_cmd: " << (command_args.last_epoch_command ? " True" : "False") << std::endl;
+                        << ", last_cmd: " << (last_command || command_args.last_epoch_command ? " True" : "False") << std::endl;
         } break;
         default: throw std::runtime_error("Invalid transfer type");
     };
@@ -496,7 +496,7 @@ static inline void dispatch_remote_transfer_command(
 }
 
 
-static void print_command_executable_code(remote_transfer_sample_t const& command) {
+static void print_command_executable_code(remote_transfer_sample_t const& command, bool last_command) {
 
     auto emit_payload_resize_string = [](int size_bytes, int size_word) {
         std::cout << "payload.resize(((" << size_bytes << " - 1) / " << size_word << ") + 1);" << std::endl;
@@ -536,7 +536,7 @@ static void print_command_executable_code(remote_transfer_sample_t const& comman
             std::cout << "tt_cxy_pair const& destination = tt_cxy_pair(" << command_args.destination.chip << ", " << command_args.destination.x << ", " << command_args.destination.y << ");"  << std::endl;
             emit_payload_resize_string(command_args.size_in_bytes, sizeof(uint32_t));
             emit_bytes_to_words_len_string("len", command_args.size_in_bytes, sizeof(uint32_t));
-            std::cout << "device->write_epoch_cmd_to_device(payload.data(), len, destination, " << command_args.address << ", \""  << command_args.tlb_to_use << "\", " << (command_args.last_epoch_command ? "true":"false") << ");" << std::endl;
+            std::cout << "device->write_epoch_cmd_to_device(payload.data(), len, destination, " << command_args.address << ", \""  << command_args.tlb_to_use << "\", " << (last_command || command_args.last_epoch_command ? "true":"false") << ");" << std::endl;
             // driver.write_epoch_cmd_to_device(payload.data(), command_args.size, command_args.destination, command_args.address, command_args.tlb_to_use, command_args.last_epoch_command);
         } break;
         default:
@@ -549,8 +549,10 @@ static void print_command_executable_code(remote_transfer_sample_t const& comman
 
 static void print_command_history_executable_code(std::vector<remote_transfer_sample_t> const& command_history) {
     std::cout << "std::vector<uint32_t> payload;" << std::endl;
-    for (remote_transfer_sample_t const& command : command_history) {
-        print_command_executable_code(command);
+    for (int i = 0; i < command_history.size(); i++) {
+        remote_transfer_sample_t const& command = command_history[i]
+        bool last_command = i == command_history.size() - 1;
+        print_command_executable_code(command, i == last_command);
     }
 }
 
@@ -614,6 +616,7 @@ void RunMixedTransfers(
     }
     std::vector<uint32_t> payload = {};
     for (int i = 0; i < num_samples; i++) {
+        bool last_command = (i == num_samples - 1);
         auto const& sample = test_generator.generate_sample();
         if (record_command_history) {
             command_history->push_back(sample);
@@ -621,14 +624,14 @@ void RunMixedTransfers(
 
         RemoteTransferType transfer_type = std::get<0>(sample);
         if (record_command_history) {
-            print_command_executable_code(sample);
+            print_command_executable_code(sample, last_command);
         } else {
-            // print_command(sample);
+            print_command(sample, last_command);
         }
         if (i != 0 && num_samples > 100 && i % (num_samples / 100) == 0) {
-            // std::cout << "Completed " << i / (num_samples / 100) << "% of samples" << std::endl;
+            std::cout << "Completed " << i / (num_samples / 100) << "% of samples" << std::endl;
         }
-        dispatch_remote_transfer_command(device, sample, payload);
+        dispatch_remote_transfer_command(device, sample, payload, last_command);
     }
 }
 
