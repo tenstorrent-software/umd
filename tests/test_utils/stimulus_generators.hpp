@@ -420,30 +420,38 @@ static void print_command(remote_transfer_sample_t const& command, bool last_com
     switch (transfer_type) {
         case RemoteTransferType::WRITE: {
             write_transfer_sample_t const& command_args = std::get<write_transfer_sample_t>(std::get<1>(command));
-            std::cout << "Transfer type: WRITE, destination: (c=" << command_args.destination.chip
+            std::stringstream ss;
+            ss << "Transfer type: WRITE, destination: (c=" << command_args.destination.chip
                         << ", y=" << command_args.destination.y << ", x=" << command_args.destination.x
                         << "), address: " << command_args.address << ", size_in_bytes: " << command_args.size_in_bytes << std::endl;
+            std::cout << ss.str();
         } break;
         case RemoteTransferType::ROLLED_WRITE: {
             rolled_write_transfer_sample_t const& command_args =
             std::get<rolled_write_transfer_sample_t>(std::get<1>(command));
-            std::cout << "Transfer type: ROLLED_WRITE, destination: (c=" << command_args.destination.chip
+            std::stringstream ss;
+            ss << "Transfer type: ROLLED_WRITE, destination: (c=" << command_args.destination.chip
                         << ", y=" << command_args.destination.y << ", x=" << command_args.destination.x
                         << "), address: " << command_args.address << ", size_in_bytes: " << command_args.size_in_bytes
                         << ", unroll_count: " << command_args.unroll_count << std::endl;
+            std::cout << ss.str();
         } break;
         case RemoteTransferType::READ: {
             read_transfer_sample_t const& command_args = std::get<read_transfer_sample_t>(std::get<1>(command));
-            std::cout << "Transfer type: READ, destination: (c=" << command_args.destination.chip
+            std::stringstream ss;
+            ss << "Transfer type: READ, destination: (c=" << command_args.destination.chip
                         << ", y=" << command_args.destination.y << ", x=" << command_args.destination.x
                         << "), address: " << command_args.address << ", size_in_bytes: " << command_args.size_in_bytes << std::endl;
+            std::cout << ss.str();
         } break;
         case RemoteTransferType::EPOCH_CMD_WRITE: {
             write_epoch_cmd_sample_t const& command_args = std::get<write_epoch_cmd_sample_t>(std::get<1>(command));
-            std::cout << "Transfer type: EPOCH_CMD_WRITE, destination: (c=" << command_args.destination.chip
+            std::stringstream ss;
+            ss << "Transfer type: EPOCH_CMD_WRITE, destination: (c=" << command_args.destination.chip
                         << ", y=" << command_args.destination.y << ", x=" << command_args.destination.x
                         << "), address: " << command_args.address << ", size_in_bytes: " << command_args.size_in_bytes
-                        << ", last_cmd: " << (last_command || command_args.last_epoch_command ? " True" : "False") << std::endl;
+                        << ", last_cmd: " << (command_args.last_epoch_command ? " True" : "False") << std::endl;
+            std::cout << ss.str();
         } break;
         default: throw std::runtime_error("Invalid transfer type");
     };
@@ -510,33 +518,41 @@ static void print_command_executable_code(remote_transfer_sample_t const& comman
         case RemoteTransferType::WRITE: {
             write_transfer_sample_t const& command_args = std::get<write_transfer_sample_t>(std::get<1>(command));
             assert(command_args.size_in_bytes >= sizeof(uint32_t));
-            std::cout << "tt_cxy_pair const& destination = tt_cxy_pair(" << command_args.destination.chip << ", " << command_args.destination.x << ", " << command_args.destination.y << ");"  << std::endl;
-            std::cout << "assert(" << command_args.size_in_bytes << " >= sizeof(uint32_t));" << std::endl;
+            std::stringstream ss;
+            ss << "tt_cxy_pair const& destination = tt_cxy_pair(" << command_args.destination.chip << ", " << command_args.destination.x << ", " << command_args.destination.y << ");"  << std::endl;
+            ss << "assert(" << command_args.size_in_bytes << " >= sizeof(uint32_t));" << std::endl;
             emit_bytes_to_words_len_string("len", command_args.size_in_bytes, sizeof(uint32_t));
             emit_payload_resize_string(command_args.size_in_bytes, sizeof(uint32_t));
-            std::cout << "device->write_to_device(payload.data(), len, destination, " << command_args.address << ", \"" << command_args.tlb_to_use << "\", false, false);" << std::endl;
+            ss << "device->write_to_device(payload.data(), len, destination, " << command_args.address << ", \"" << command_args.tlb_to_use << "\", false, false);" << std::endl;
+            std::cout << ss.str();
             // driver.write_to_device(payload.data(), command_args.size, command_args.destination, command_args.address, command_args.tlb_to_use, false, false);
         } break;
         case RemoteTransferType::ROLLED_WRITE: {
             rolled_write_transfer_sample_t const& command_args = std::get<rolled_write_transfer_sample_t>(std::get<1>(command));
-            std::cout << "tt_cxy_pair const& destination = tt_cxy_pair(" << command_args.destination.chip << ", " << command_args.destination.x << ", " << command_args.destination.y << ");"  << std::endl;
+            std::stringstream ss;
+            ss << "tt_cxy_pair const& destination = tt_cxy_pair(" << command_args.destination.chip << ", " << command_args.destination.x << ", " << command_args.destination.y << ");"  << std::endl;
             emit_payload_resize_string(command_args.size_in_bytes, sizeof(uint32_t));
-            std::cout << "device->rolled_write_to_device(payload, " << command_args.unroll_count << ", destination, " << command_args.address << ", \"" << command_args.tlb_to_use << "\");" << std::endl;
+            ss << "device->rolled_write_to_device(payload, " << command_args.unroll_count << ", destination, " << command_args.address << ", \"" << command_args.tlb_to_use << "\");" << std::endl;
+            std::cout << ss.str();
             // driver.rolled_write_to_device(payload, command_args.unroll_count, command_args.destination, command_args.address, command_args.tlb_to_use);
         } break;
         case RemoteTransferType::READ: {
             read_transfer_sample_t const& command_args = std::get<read_transfer_sample_t>(std::get<1>(command));
-            std::cout << "tt_cxy_pair const& destination = tt_cxy_pair(" << command_args.destination.chip << ", " << command_args.destination.x << ", " << command_args.destination.y << ");"  << std::endl;
+            std::stringstream ss;
+            ss << "tt_cxy_pair const& destination = tt_cxy_pair(" << command_args.destination.chip << ", " << command_args.destination.x << ", " << command_args.destination.y << ");"  << std::endl;
             emit_payload_resize_string(command_args.size_in_bytes, sizeof(uint32_t));
-            std::cout << "device->read_from_device(payload.data(), destination, " << command_args.address << ", " << command_args.size_in_bytes << ", \"" << command_args.tlb_to_use << "\");" << std::endl;
+            ss << "device->read_from_device(payload.data(), destination, " << command_args.address << ", " << command_args.size_in_bytes << ", \"" << command_args.tlb_to_use << "\");" << std::endl;
+            std::cout << ss.str();
             // driver.read_from_device(payload.data(), command_args.destination, command_args.address, command_args.size, command_args.tlb_to_use);
         } break;
         case RemoteTransferType::EPOCH_CMD_WRITE: {
             write_epoch_cmd_sample_t const& command_args = std::get<write_epoch_cmd_sample_t>(std::get<1>(command));
-            std::cout << "tt_cxy_pair const& destination = tt_cxy_pair(" << command_args.destination.chip << ", " << command_args.destination.x << ", " << command_args.destination.y << ");"  << std::endl;
+            std::stringstream ss;
+            ss << "tt_cxy_pair const& destination = tt_cxy_pair(" << command_args.destination.chip << ", " << command_args.destination.x << ", " << command_args.destination.y << ");"  << std::endl;
             emit_payload_resize_string(command_args.size_in_bytes, sizeof(uint32_t));
             emit_bytes_to_words_len_string("len", command_args.size_in_bytes, sizeof(uint32_t));
-            std::cout << "device->write_epoch_cmd_to_device(payload.data(), len, destination, " << command_args.address << ", \""  << command_args.tlb_to_use << "\", " << (last_command || command_args.last_epoch_command ? "true":"false") << ");" << std::endl;
+            ss << "device->write_epoch_cmd_to_device(payload.data(), len, destination, " << command_args.address << ", \""  << command_args.tlb_to_use << "\", " << (command_args.last_epoch_command ? "true":"false") << ");" << std::endl;
+            std::cout << ss.str();
             // driver.write_epoch_cmd_to_device(payload.data(), command_args.size, command_args.destination, command_args.address, command_args.tlb_to_use, command_args.last_epoch_command);
         } break;
         default:
