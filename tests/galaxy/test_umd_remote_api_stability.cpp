@@ -87,7 +87,129 @@ TEST_F(WormholeGalaxyStabilityTestFixture, MixedRemoteTransfers) {
 
 }
 
-TEST_F(WormholeGalaxyStabilityTestFixture, DISABLED_MultithreadedMixedRemoteTransfersMediumSmall) {
+
+TEST_F(WormholeGalaxyStabilityTestFixture, MultithreadedMixedRemoteTransfersMediumSmall_2Threads) {
+    int seed = 0;
+
+    std::cout << "Running commands in multithreaded mode." << std::endl;
+    assert(device != nullptr);
+    std::thread t1([&](){
+        RunMixedTransfersUniformDistributions(
+            *device, 
+            50000,
+            0,
+
+            transfer_type_weights_t{.write = 0.50, .rolled_write = 0., .read = 0.50, .epoch_cmd_write = 0.},
+
+            std::uniform_int_distribution<address_t>(0x100000, 0x200000), // address generator distribution
+            std::uniform_int_distribution<transfer_size_t>(0x4, 30000), //WRITE_SIZE_GENERATOR_T const& write_size_distribution,
+            std::uniform_int_distribution<transfer_size_t>(0x4, 30000), //ROLLED_WRITE_SIZE_GENERATOR_T const& rolled_write_size_distribution,
+            std::uniform_int_distribution<int>(2, 4), //UNROLL_COUNT_GENERATOR_T const& unroll_count_distribution
+            std::uniform_int_distribution<transfer_size_t>(0x4, 0x12), //WRITE_EPOCH_CMD_SIZE_GENERATOR_T const& write_epoch_cmd_size_distribution,
+            0.75,
+            std::uniform_int_distribution<transfer_size_t>(0x4, 30000), //READ_SIZE_GENERATOR_T const& read_size_distribution,
+
+            false, // Set to true if you want to emit the command history code to command line
+            nullptr
+        );    
+    });
+
+    std::thread t2([&](){
+        RunMixedTransfersUniformDistributions(
+            *device, 
+            100000,
+            99,
+
+            transfer_type_weights_t{.write = 0.1, .rolled_write = 0, .read = 0.1, .epoch_cmd_write = 0.8},
+
+            std::uniform_int_distribution<address_t>(0x100000, 0x200000), // address generator distribution
+            std::uniform_int_distribution<transfer_size_t>(0x4, 3000), //WRITE_SIZE_GENERATOR_T const& write_size_distribution,
+            std::uniform_int_distribution<transfer_size_t>(0x4, 3000), //ROLLED_WRITE_SIZE_GENERATOR_T const& rolled_write_size_distribution,
+            std::uniform_int_distribution<int>(2, 4), //UNROLL_COUNT_GENERATOR_T const& unroll_count_distribution
+            std::uniform_int_distribution<transfer_size_t>(0x4, 0x12), //WRITE_EPOCH_CMD_SIZE_GENERATOR_T const& write_epoch_cmd_size_distribution,
+            0.75,
+            std::uniform_int_distribution<transfer_size_t>(0x4, 3000), //READ_SIZE_GENERATOR_T const& read_size_distribution,
+
+            false, // Set to true if you want to emit the command history code to command line
+            nullptr
+        );    
+    });
+
+    t1.join();
+    t2.join();
+}
+TEST_F(WormholeGalaxyStabilityTestFixture, DISABLED_MultithreadedMixedRemoteTransfersMediumSmall_3Threads) {
+    int seed = 0;
+
+    std::cout << "Running commands in multithreaded mode." << std::endl;
+    assert(device != nullptr);
+    std::thread t1([&](){
+        RunMixedTransfersUniformDistributions(
+            *device, 
+            50000,
+            0,
+
+            transfer_type_weights_t{.write = 0.50, .rolled_write = 0., .read = 0.50, .epoch_cmd_write = 0.},
+
+            std::uniform_int_distribution<address_t>(0x100000, 0x200000), // address generator distribution
+            std::uniform_int_distribution<transfer_size_t>(0x4, 30000), //WRITE_SIZE_GENERATOR_T const& write_size_distribution,
+            std::uniform_int_distribution<transfer_size_t>(0x4, 30000), //ROLLED_WRITE_SIZE_GENERATOR_T const& rolled_write_size_distribution,
+            std::uniform_int_distribution<int>(2, 4), //UNROLL_COUNT_GENERATOR_T const& unroll_count_distribution
+            std::uniform_int_distribution<transfer_size_t>(0x4, 0x12), //WRITE_EPOCH_CMD_SIZE_GENERATOR_T const& write_epoch_cmd_size_distribution,
+            0.75,
+            std::uniform_int_distribution<transfer_size_t>(0x4, 30000), //READ_SIZE_GENERATOR_T const& read_size_distribution,
+
+            false, // Set to true if you want to emit the command history code to command line
+            nullptr
+        );    
+    });
+    std::thread t2([&](){
+        RunMixedTransfersUniformDistributions(
+            *device, 
+            50000,
+            100,
+
+            transfer_type_weights_t{.write = 0.25, .rolled_write = 0.25, .read = 0.50, .epoch_cmd_write = 0.},
+
+            std::uniform_int_distribution<address_t>(0x100000, 0x200000), // address generator distribution
+            std::uniform_int_distribution<transfer_size_t>(0x4, 30000), //WRITE_SIZE_GENERATOR_T const& write_size_distribution,
+            std::uniform_int_distribution<transfer_size_t>(0x4, 30000), //ROLLED_WRITE_SIZE_GENERATOR_T const& rolled_write_size_distribution,
+            std::uniform_int_distribution<int>(2, 4), //UNROLL_COUNT_GENERATOR_T const& unroll_count_distribution
+            std::uniform_int_distribution<transfer_size_t>(0x4, 0x12), //WRITE_EPOCH_CMD_SIZE_GENERATOR_T const& write_epoch_cmd_size_distribution,
+            0.75,
+            std::uniform_int_distribution<transfer_size_t>(0x4, 30000), //READ_SIZE_GENERATOR_T const& read_size_distribution,
+
+            false, // Set to true if you want to emit the command history code to command line
+            nullptr
+        );    
+    });
+    std::thread t3([&](){
+        RunMixedTransfersUniformDistributions(
+            *device, 
+            100000,
+            99,
+
+            transfer_type_weights_t{.write = 0.1, .rolled_write = 0, .read = 0.1, .epoch_cmd_write = 0.8},
+
+            std::uniform_int_distribution<address_t>(0x100000, 0x200000), // address generator distribution
+            std::uniform_int_distribution<transfer_size_t>(0x4, 3000), //WRITE_SIZE_GENERATOR_T const& write_size_distribution,
+            std::uniform_int_distribution<transfer_size_t>(0x4, 3000), //ROLLED_WRITE_SIZE_GENERATOR_T const& rolled_write_size_distribution,
+            std::uniform_int_distribution<int>(2, 4), //UNROLL_COUNT_GENERATOR_T const& unroll_count_distribution
+            std::uniform_int_distribution<transfer_size_t>(0x4, 0x12), //WRITE_EPOCH_CMD_SIZE_GENERATOR_T const& write_epoch_cmd_size_distribution,
+            0.75,
+            std::uniform_int_distribution<transfer_size_t>(0x4, 3000), //READ_SIZE_GENERATOR_T const& read_size_distribution,
+
+            false, // Set to true if you want to emit the command history code to command line
+            nullptr
+        );    
+    });
+
+    t1.join();
+    t2.join();
+    t3.join();
+}
+
+TEST_F(WormholeGalaxyStabilityTestFixture, DISABLED_MultithreadedMixedRemoteTransfersMediumSmall_4Threads) {
     int seed = 0;
 
     std::cout << "Running commands in multithreaded mode." << std::endl;
