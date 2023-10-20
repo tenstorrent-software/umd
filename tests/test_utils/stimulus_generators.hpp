@@ -566,7 +566,7 @@ static void print_command_executable_code(remote_transfer_sample_t const& comman
 static void print_command_history_executable_code(std::vector<remote_transfer_sample_t> const& command_history) {
     std::cout << "std::vector<uint32_t> payload;" << std::endl;
     for (int i = 0; i < command_history.size(); i++) {
-        remote_transfer_sample_t const& command = command_history[i]
+        remote_transfer_sample_t const& command = command_history[i];
         bool last_command = i == command_history.size() - 1;
         print_command_executable_code(command, i == last_command);
     }
@@ -647,7 +647,7 @@ void RunMixedTransfers(
         if (i != 0 && num_samples > 100 && i % (num_samples / 100) == 0) {
             std::cout << "Completed " << i / (num_samples / 100) << "% of samples" << std::endl;
         }
-        dispatch_remote_transfer_command(device, sample, payload, last_command);
+        dispatch_remote_transfer_command(device, sample, payload);
     }
 }
 
