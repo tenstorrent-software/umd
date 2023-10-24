@@ -3482,7 +3482,7 @@ void tt_SiliconDevice::read_from_non_mmio_device(uint32_t* mem_ptr, tt_cxy_pair 
         uint32_t host_dram_block_addr = host_address_params.ETH_ROUTING_BUFFERS_START + resp_rd_ptr * max_block_size;
         uint16_t host_dram_channel = 0; // This needs to be 0, since WH can only map ETH buffers to chan 0.
 
-        if (use_dram) {
+        if (use_dram && (block_size > DATA_WORD_SIZE)) {
             req_flags |= eth_interface_params.CMD_DATA_BLOCK_DRAM;
             resp_flags |= eth_interface_params.CMD_DATA_BLOCK_DRAM;
         }
@@ -3537,30 +3537,31 @@ void tt_SiliconDevice::read_from_non_mmio_device(uint32_t* mem_ptr, tt_cxy_pair 
         do {
             read_device_memory(erisc_resp_flags.data(), remote_transfer_ethernet_core, eth_interface_params.RESPONSE_ROUTING_CMD_QUEUE_BASE + flags_offset, DATA_WORD_SIZE, read_tlb);
         } while (erisc_resp_flags[0] == 0);
-        tt_device_logger::log_assert(erisc_resp_flags[0] == resp_flags, "Unexpected ERISC Response Flags.");
-        tt_driver_atomics::lfence();
-        uint32_t data_offset = 8 + sizeof(routing_cmd_t) * resp_rd_ptr;
-        if (block_size == DATA_WORD_SIZE) {
-            std::vector<std::uint32_t> erisc_resp_data = std::vector<uint32_t>(1);
-            read_device_memory(erisc_resp_data.data(), remote_transfer_ethernet_core, eth_interface_params.RESPONSE_ROUTING_CMD_QUEUE_BASE + data_offset, DATA_WORD_SIZE, read_tlb);
-            mem_ptr[offset/DATA_WORD_SIZE] = erisc_resp_data[0];
-        } else {
-            if (use_dram) {
-                read_from_sysmem(data_block, host_dram_block_addr, host_dram_channel, block_size, mmio_capable_chip_logical);
+	if (erisc_resp_flags[0] == resp_flags) {
+            tt_driver_atomics::lfence();
+            uint32_t data_offset = 8 + sizeof(routing_cmd_t) * resp_rd_ptr;
+            if (block_size == DATA_WORD_SIZE) {
+                std::vector<std::uint32_t> erisc_resp_data = std::vector<uint32_t>(1);
+                read_device_memory(erisc_resp_data.data(), remote_transfer_ethernet_core, eth_interface_params.RESPONSE_ROUTING_CMD_QUEUE_BASE + data_offset, DATA_WORD_SIZE, read_tlb);
+                mem_ptr[offset/DATA_WORD_SIZE] = erisc_resp_data[0];
             } else {
-                uint32_t buf_address = eth_interface_params.ETH_ROUTING_DATA_BUFFER_ADDR + resp_rd_ptr * max_block_size;
-                size_buffer_to_capacity(data_block, block_size);
-                read_device_memory(data_block.data(), remote_transfer_ethernet_core, buf_address, block_size, read_tlb);
+                if (use_dram) {
+                    read_from_sysmem(data_block, host_dram_block_addr, host_dram_channel, block_size, mmio_capable_chip_logical);
+                } else {
+                    uint32_t buf_address = eth_interface_params.ETH_ROUTING_DATA_BUFFER_ADDR + resp_rd_ptr * max_block_size;
+                    size_buffer_to_capacity(data_block, block_size);
+                    read_device_memory(data_block.data(), remote_transfer_ethernet_core, buf_address, block_size, read_tlb);
+                }
+                // assert(mem_ptr.size() - (offset/DATA_WORD_SIZE) >= (block_size * DATA_WORD_SIZE));
+                assert((data_block.size() * DATA_WORD_SIZE) >= block_size);
+                memcpy(&mem_ptr[offset/DATA_WORD_SIZE], data_block.data(), block_size);
             }
-            // assert(mem_ptr.size() - (offset/DATA_WORD_SIZE) >= (block_size * DATA_WORD_SIZE));
-            assert((data_block.size() * DATA_WORD_SIZE) >= block_size);
-            memcpy(&mem_ptr[offset/DATA_WORD_SIZE], data_block.data(), block_size);
         }
-
         // Finally increment the rdptr for the response command q
         erisc_resp_q_rptr[0] = (erisc_resp_q_rptr[0] + 1) & eth_interface_params.CMD_BUF_PTR_MASK;
         write_device_memory(erisc_resp_q_rptr.data(), erisc_resp_q_rptr.size(), remote_transfer_ethernet_core, eth_interface_params.RESPONSE_CMD_QUEUE_BASE + sizeof(remote_update_ptr_t) + eth_interface_params.CMD_COUNTERS_SIZE_BYTES, write_tlb);
         tt_driver_atomics::sfence();
+        tt_device_logger::log_assert(erisc_resp_flags[0] == resp_flags, "Unexpected ERISC Response Flags.");
 
         offset += block_size;
     }
