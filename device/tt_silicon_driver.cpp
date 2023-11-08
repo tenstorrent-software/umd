@@ -1568,6 +1568,35 @@ tt_SiliconDevice::tt_SiliconDevice(const std::string &sdesc_path, const std::str
             idx++;
         }
     }
+    if(!perform_harvesting) {
+        // If the constructor is not creating harvested SOC descriptors, ensure that the descriptor used during runtime is legal (i.e. does not use physically harvested rows)
+        const auto& forced_sdesc = tt_SocDescriptor(sdesc_path);
+        const auto& workers = forced_sdesc.workers;
+        if(arch_name == tt::ARCH::GRAYSKULL) {
+            // Passed in sdesc must not use harvested device rows for GS.
+            for(const auto device : target_devices) {
+                std::vector<int> harvested_rows = extract_rows_to_remove(arch_name, 0, harvested_rows_per_target.at(device));
+                for(const auto& worker : workers) {
+                    tt_device_logger::log_assert(find(harvested_rows.begin(), harvested_rows.end(), worker.y) == harvested_rows.end(), 
+                                        "Forcing usage of harvested physical row {} in SOC descriptor", worker.y);
+                }
+            }
+        }
+        else {
+            // Grid size y should not exceed grid size of chip
+            std::unordered_set<uint32_t> rows_in_sdesc = {};
+            for(const auto worker : workers) {
+                rows_in_sdesc.insert(worker.y);
+            }
+            for(const auto device : target_devices) {
+                uint32_t max_row_logical = DEVICE_DATA.T6_Y_LOCATIONS.size() - num_rows_harvested.at(device);
+                for(const auto row : rows_in_sdesc) {
+                    tt_device_logger::log_assert(forced_sdesc.routing_y_to_worker_y.at(row) < max_row_logical,
+                                        "Forcing usage of harvested logical row {} in SOC Descriptor", forced_sdesc.routing_y_to_worker_y.at(row));
+                }
+            }
+        }
+    }
 
     perform_harvesting_and_populate_soc_descriptors(sdesc_path, perform_harvesting);
     populate_cores();
@@ -4148,10 +4177,13 @@ std::uint32_t tt_SiliconDevice::get_dram_channel_size(std::uint32_t device_id, s
 std::uint32_t tt_SiliconDevice::get_num_host_channels(std::uint32_t device_id) {
     tt_device_logger::log_assert(all_target_mmio_devices.find(device_id) != all_target_mmio_devices.end(), "Querying Host Address parameters for a non-mmio device or a device does not exist.");
     return m_num_host_mem_channels; // Same number of host channels per device for now
-}
+}   
 
 std::uint32_t tt_SiliconDevice::get_host_channel_size(std::uint32_t device_id, std::uint32_t channel) {
     tt_device_logger::log_assert(host_channel_size.size(), "Host channel size can only be queried after the device has been started.");
     tt_device_logger::log_assert(channel < get_num_host_channels(device_id), "Querying size for a host channel that does not exist.");
     return host_channel_size.at(device_id).at(channel);
 }
+
+
+
