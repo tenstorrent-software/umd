@@ -3069,7 +3069,7 @@ void tt_SiliconDevice::write_to_non_mmio_device(const uint32_t *mem_ptr, uint32_
 
         if (req_flags & eth_interface_params.CMD_DATA_BLOCK) {
             if (use_dram) {
-                req_flags |= eth_interface_params.CMD_DATA_BLOCK_DRAM;
+                req_flags |= (eth_interface_params.CMD_DATA_BLOCK_DRAM | (0x1 << 12));
                 resp_flags |= eth_interface_params.CMD_DATA_BLOCK_DRAM;
                 data_block.resize(block_size/DATA_WORD_SIZE);
                 memcpy(&data_block[0], mem_ptr + offset/DATA_WORD_SIZE, block_size);
