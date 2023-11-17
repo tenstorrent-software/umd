@@ -19,6 +19,8 @@
 #include <memory>
 #include "device/tt_cluster_descriptor_types.h"
 
+#include <cstdint>
+
 namespace YAML { class Node; }
 
 class tt_ClusterDescriptor {
