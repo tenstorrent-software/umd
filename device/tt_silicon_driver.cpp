@@ -130,6 +130,49 @@ uint32_t pcie_dma_transfer_turbo (TTDevice *dev, uint32_t chip_addr, uint32_t ho
 DMAbuffer pci_allocate_dma_buffer(TTDevice *dev, uint32_t size);
 void pcie_init_dma_transfer_turbo (PCIdevice* dev);
 
+// RAII style lock abstraction for TT-KMD locking mechanism
+class KmdScopedLock
+{
+    const int fd;
+    const int resource;
+public:
+    static constexpr int RESOURCE_ARC = 0;
+    static constexpr int RESOURCE_TLB1 = 0;
+    // ... etc
+
+    KmdScopedLock(int fd, int resource)
+        : fd(fd)
+        , resource(resource)
+    {
+        tenstorrent_lock_ctl lock{};
+
+        lock.in.output_size_bytes = sizeof lock.out;
+        lock.in.flags = TENSTORRENT_LOCK_CTL_ACQUIRE;
+        lock.in.index = resource;
+
+        // If this is going to be more than proof-of-concept:
+        // - add a timeout
+        // - make driver return -EAGAIN if we fail to acquire lock
+        for (;;) {
+            ioctl(fd, TENSTORRENT_IOCTL_LOCK_CTL, &lock);
+            if (lock.out.value == 1) {
+                break;
+            }
+        }
+    }
+
+    ~KmdScopedLock()
+    {
+        tenstorrent_lock_ctl lock{};
+
+        lock.in.output_size_bytes = sizeof lock.out;
+        lock.in.flags = TENSTORRENT_LOCK_CTL_RELEASE;
+        lock.in.index = resource;
+
+        ioctl(fd, TENSTORRENT_IOCTL_LOCK_CTL, &lock);
+    }
+};
+
 // Stash all the fields of TTDevice in TTDeviceBase to make moving simpler.
 struct TTDeviceBase
 {
@@ -2769,9 +2812,16 @@ int tt_SiliconDevice::pcie_arc_msg(int logical_device_id, uint32_t msg_code, boo
 
     struct PCIdevice* pci_device = get_pci_device(logical_device_id);
 
+    // Temporarily disable named mutex locking for ARC messaging, to demonstrate
+    // use of the KMD's locking mechanism.
+#if 0
     // Exclusive access for a single process at a time. Based on physical pci interface id.
     std::string msg_type = "ARC_MSG";
     const scoped_lock<named_mutex> lock(*get_mutex(msg_type, pci_device->id));
+#else
+    KmdScopedLock lock(pci_device->hdev->device_fd, KmdScopedLock::RESOURCE_ARC);
+#endif
+
     uint32_t fw_arg = arg0 | (arg1<<16);
     int exit_code = 0;
 
