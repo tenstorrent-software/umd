@@ -150,11 +150,11 @@ ifeq ("$(HOST_ARCH)", "aarch64")
     $(error VERSIM build is not enabled for non x86 hosts)
   endif
 else
-  DEVICE_CXX ?= /usr/bin/clang++-6.0
+  DEVICE_CXX ?= /usr/bin/clang++
   # Compiling VERSIM with /usr/bin/g++ causes build issues (not compatible with boost version)
   # Force clang usage.
   ifneq ($(UMD_VERSIM_STUB),1)
-    DEVICE_CXX = /usr/bin/clang++-6.0
+    DEVICE_CXX = /usr/bin/clang++
   endif
 endif
 
