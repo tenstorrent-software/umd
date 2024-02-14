@@ -74,6 +74,12 @@ std::int32_t get_static_tlb_index(tt_xy_pair target) {
 
 TEST(SiliconDriverWH, CreateDestroy) {
     std::set<chip_id_t> target_devices = {0, 1};
+    {
+        std::unique_ptr<tt_ClusterDescriptor> cluster_desc_uniq = tt_ClusterDescriptor::create_from_yaml(GetClusterDescYAML().string());
+        if (cluster_desc_uniq->get_number_of_chips() != target_devices.size()) {
+            GTEST_SKIP() << "SiliconDriverWH.Harvesting skipped because it can only be run on a two chip nebula system";
+        }
+    }
     uint32_t num_host_mem_ch_per_mmio_device = 1;
     std::unordered_map<std::string, std::int32_t> dynamic_tlb_config = {}; // Don't set any dynamic TLBs in this test
     tt_device_params default_params;
@@ -212,6 +218,12 @@ TEST(SiliconDriverWH, UnalignedStaticTLB_RW) {
     };
 
     std::set<chip_id_t> target_devices = {0, 1};
+    {
+        std::unique_ptr<tt_ClusterDescriptor> cluster_desc_uniq = tt_ClusterDescriptor::create_from_yaml(GetClusterDescYAML().string());
+        if (cluster_desc_uniq->get_number_of_chips() != target_devices.size()) {
+            GTEST_SKIP() << "SiliconDriverWH.Harvesting skipped because it can only be run on a two chip nebula system";
+        }
+    }
 
     std::unordered_map<std::string, std::int32_t> dynamic_tlb_config = {}; // Don't set any dynamic TLBs in this test
     dynamic_tlb_config["REG_TLB"] = 184;
