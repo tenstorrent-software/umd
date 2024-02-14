@@ -254,8 +254,8 @@ TEST(SiliconDriverWH, UnalignedStaticTLB_RW) {
     for(int i = 0; i < 2; i++) {
         for(const auto& size : unaligned_sizes) {
             std::vector<uint8_t> write_vec(size, 0);
-            for(int i = 0; i < size; i++){
-                write_vec[i] = size + i;
+            for(int j = 0; j < size; j++){
+                write_vec[j] = size + j;
             }
             std::vector<uint8_t> readback_vec(size, 0);
             std::uint32_t address = l1_mem::address_map::NCRISC_FIRMWARE_BASE;
