@@ -4,3 +4,4 @@ build
 .umd/
 compile_commands.json
 .cache/**
+.vscode/**

@@ -52,6 +52,7 @@ UMDHEADERS := device/device_api.h
 
 include device/module.mk
 include tests/module.mk
+include test_app/module.mk
 
 init:
 	echo $(LIBDIR)

@@ -546,7 +546,7 @@ bool is_char_dev(const dirent *ent, const char *parent_dir) {
 }
 
 std::vector<chip_id_t> ttkmd_scan() {
-
+    // TODO: Use from kmd.cpp
     static const char dev_dir[] = "/dev/tenstorrent";
 
     std::vector<chip_id_t> found_devices;

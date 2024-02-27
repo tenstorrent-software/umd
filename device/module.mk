@@ -14,6 +14,9 @@ DEVICE_SRCS = \
   device/architecture_implementation.cpp \
   device/blackhole_implementation.cpp \
   device/grayskull_implementation.cpp \
+  device/device.cpp \
+  device/device_collection.cpp \
+  device/kmd.cpp \
   device/tlb.cpp \
   device/wormhole_implementation.cpp \
 
