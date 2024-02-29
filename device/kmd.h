@@ -34,6 +34,7 @@ class kmd {
 
     architecture get_architecture() const { return arch; }
 
+    uint32_t get_index() const { return index; }
     int32_t get_device_fd() { return fd; }
     int32_t get_config_space_fd();
 
@@ -41,6 +42,7 @@ class kmd {
     static std::vector<chip_id_t> scan();
 
    private:
+    uint32_t index;
     file_resource fd;
     file_resource config_fd;
     std::filesystem::path sys_bus_path;

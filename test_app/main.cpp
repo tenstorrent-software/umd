@@ -1,4 +1,5 @@
 #include <iostream>
+
 #include "device/device_collection.h"
 #include "device/kmd.h"
 
@@ -15,8 +16,7 @@ int main() {
             auto kmd = tt::umd::kmd::open(chip_id);
             std::cout << "  Open succeeded" << std::endl;
             std::cout << "  Architecture: " << kmd->get_architecture() << std::endl;
-        }
-        catch (const std::exception& e) {
+        } catch (const std::exception& e) {
             std::cerr << "  Failed to open kmd: " << e.what() << std::endl;
         }
     }
@@ -26,7 +26,10 @@ int main() {
     auto host_devices = tt::umd::device_collection::host_devices();
 
     for (const auto& device : host_devices.get_devices()) {
-        //std::cout << "Device: " << device->get_name() << std::endl;
+        if (device) {
+            std::cout << "Logical device id: " << device->get_logical_device_id() << std::endl;
+            std::cout << "  Architecture: " << device->get_architecture() << std::endl;
+        }
     }
 
     return 0;

@@ -7,7 +7,7 @@
 namespace tt::umd {
 
 device_collection device_collection::host_devices() {
-    std::vector<std::unique_ptr<device>> devices;
+    std::vector<std::shared_ptr<device>> devices;
 
     // TODO: Read cluster description to initialize ethernet devices
     auto chip_ids = kmd::scan();
@@ -15,7 +15,7 @@ device_collection device_collection::host_devices() {
     for (auto chip_id : chip_ids) {
         auto kmd = kmd::open(chip_id);
         if (kmd) {
-            auto dev = device::open(std::move(kmd));
+            auto dev = pci_device::open(std::move(kmd), chip_id);
 
             if (dev) {
                 devices.push_back(std::move(dev));
@@ -24,6 +24,14 @@ device_collection device_collection::host_devices() {
     }
 
     return {std::move(devices)};
+}
+
+std::shared_ptr<device> device_collection::get_device(uint32_t index) {
+    if (index < devices.size()) {
+        return devices[index];
+    }
+
+    return {};
 }
 
 }  // namespace tt::umd
