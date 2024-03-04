@@ -16,6 +16,7 @@
 #include <memory>
 #include <sstream>
 
+#include "common/logger.hpp"
 #include "device/resources.h"
 #include "ioctl.h"
 
@@ -23,7 +24,8 @@ namespace tt::umd {
 
 static constexpr uint32_t GS_BAR0_WC_MAPPING_SIZE = (156 << 20) + (10 << 21) + (18 << 24);
 
-static std::filesystem::path get_sys_bus_path(uint16_t pci_domain, uint8_t pci_bus, uint8_t pci_device, uint8_t pci_function) {
+static std::filesystem::path get_sys_bus_path(
+    uint16_t pci_domain, uint8_t pci_bus, uint8_t pci_device, uint8_t pci_function) {
     std::stringstream ss;
 
     ss << "/sys/bus/pci/devices/";
@@ -42,12 +44,24 @@ static int32_t read_int_from_file(const std::filesystem::path& path, bool verify
         int32_t result = std::stoi(line, &index, 0);
 
         if (verify_only_int && index != line.size()) {
-            throw std::runtime_error("Error reading int from file: " + path.string() + ". Expected only an int on first line, but found '" + line + "'.");
+            throw std::runtime_error(
+                "Error reading int from file: " + path.string() + ". Expected only an int on first line, but found '" +
+                line + "'.");
         }
         return result;
     } else {
         throw std::runtime_error("Error reading int from file: " + path.string());
     }
+}
+
+uint64_t dma_buffer::get_physical_address() const {
+    log_assert(physical_address, "DMA Buffer not initialized");
+    return reinterpret_cast<uint64_t>(physical_address);
+}
+
+uint64_t dma_buffer::get_user_address() const {
+    log_assert(user_address, "DMA Buffer not initialized");
+    return reinterpret_cast<uint64_t>(user_address);
 }
 
 kmd::kmd(file_resource fd) : fd(std::move(fd)) {}
@@ -249,6 +263,43 @@ int32_t kmd::get_config_space_fd() {
     }
 
     return config_fd;
+}
+
+volatile uint8_t* kmd::get_register_byte_address(uint32_t register_offset) {
+    void* reg_mapping;
+    if (system_reg_mapping != nullptr && register_offset >= system_reg_start_offset) {
+        register_offset -= system_reg_offset_adjust;
+        reg_mapping = system_reg_mapping;
+    } else if (register_offset < bar0_wc.length()) {
+        reg_mapping = bar0_wc;
+    } else {
+        register_offset -= bar0_uc_offset;
+        reg_mapping = bar0_uc;
+    }
+    return static_cast<uint8_t*>(reg_mapping) + register_offset;
+}
+
+void* kmd::get_reg_mapping_and_adjust_offset(uint32_t& address) {
+    if (system_reg_mapping != nullptr && address >= system_reg_start_offset) {
+        address -= system_reg_offset_adjust;
+        return system_reg_mapping;
+    } else {
+        return bar0_wc ? bar0_wc : bar0_uc;  // TODO: This is cause of TODO in open() function
+    }
+}
+
+bool kmd::reset_by_ioctl() {
+    struct tenstorrent_reset_device reset_device;
+    memset(&reset_device, 0, sizeof(reset_device));
+
+    reset_device.in.output_size_bytes = sizeof(reset_device.out);
+    reset_device.in.flags = 0;
+
+    if (ioctl(fd, TENSTORRENT_IOCTL_RESET_DEVICE, &reset_device) == -1) {
+        return false;
+    }
+
+    return (reset_device.out.result == 0);
 }
 
 }  // namespace tt::umd

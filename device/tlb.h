@@ -25,6 +25,12 @@ struct tlb_offsets {
     uint32_t static_vc_end;
 };
 
+enum class tlb_data_ordering : uint8_t {
+    relaxed = 0,
+    strict = 1,
+    posted = 2,
+};
+
 struct tlb_data {
     uint64_t local_offset = 0;
     uint64_t x_end = 0;
@@ -37,10 +43,10 @@ struct tlb_data {
     uint64_t linked = 0;
     uint64_t static_vc = 0;
 
-    // Orderings
-    static constexpr uint64_t Relaxed = 0;
-    static constexpr uint64_t Strict  = 1;
-    static constexpr uint64_t Posted  = 2;
+    // TODO: Backward compability, remove in favor of tlb_data_ordering
+    static constexpr uint64_t Relaxed = static_cast<uint64_t>(tlb_data_ordering::relaxed);
+    static constexpr uint64_t Strict  = static_cast<uint64_t>(tlb_data_ordering::strict);
+    static constexpr uint64_t Posted  = static_cast<uint64_t>(tlb_data_ordering::posted);
 
     bool check(const tlb_offsets & offset) const;
     std::optional<uint64_t> apply_offset(const tlb_offsets& offset) const;
@@ -52,6 +58,11 @@ struct tlb_configuration {
     uint32_t cfg_addr;
     uint32_t index_offset;
     tlb_offsets offset;
+};
+
+struct dynamic_tlb {
+    uint32_t bar_offset;      // Offset that address is mapped to, within the PCI BAR.
+    uint32_t remaining_size;  // Bytes remaining between bar_offset and end of the TLB.
 };
 
 }  // namespace tt::umd
