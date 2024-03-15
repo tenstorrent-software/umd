@@ -12,7 +12,7 @@
 #include <unordered_set>
 
 // #include "l1_address_map.h"
-
+#include "assert.hpp"
 std::string format_node(tt_xy_pair xy) { return std::to_string(xy.x) + "-" + std::to_string(xy.y); }
 
 tt_xy_pair format_node(std::string str) {
@@ -166,7 +166,7 @@ void tt_SocDescriptor::load_core_descriptors_from_device_descriptor(YAML::Node &
 tt_SocDescriptor::tt_SocDescriptor(std::string device_descriptor_path) {
     std::ifstream fdesc(device_descriptor_path);
     if (fdesc.fail()) {
-        std::abort();
+        TT_ASSERT(false, "Error: device descriptor file " + device_descriptor_path + " does not exist!");
         throw std::runtime_error("Error: device descriptor file " + device_descriptor_path + " does not exist!");
     }
     fdesc.close();
