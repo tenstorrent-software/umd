@@ -166,6 +166,7 @@ void tt_SocDescriptor::load_core_descriptors_from_device_descriptor(YAML::Node &
 tt_SocDescriptor::tt_SocDescriptor(std::string device_descriptor_path) {
     std::ifstream fdesc(device_descriptor_path);
     if (fdesc.fail()) {
+        std::abort();
         throw std::runtime_error("Error: device descriptor file " + device_descriptor_path + " does not exist!");
     }
     fdesc.close();
