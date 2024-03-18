@@ -127,7 +127,25 @@ std::unique_ptr<tt_ClusterDescriptor> tt_ClusterDescriptor::create_from_yaml(con
     tt_ClusterDescriptor::load_chips_from_connectivity_descriptor(yaml, *desc);
     tt_ClusterDescriptor::load_ethernet_connections_from_connectivity_descriptor(yaml, *desc);
     tt_ClusterDescriptor::load_harvesting_information(yaml, *desc);
-    desc->enable_all_devices();
+    std::vector<int> chips;
+    char *env_var_str = std::getenv("TT_METAL_GALAXY_CHIPS");
+
+    // If the environment variable is not empty, parse it.
+    while (env_var_str != nullptr) {
+        uint32_t chip;
+        if (sscanf(env_var_str, "%d", &chip) != 1) {
+            log_assert(false, "Invalid {}", env_var_str);
+        }
+        chips.push_back(chip);
+        env_var_str = strchr(env_var_str, ',');
+        if (env_var_str != nullptr) env_var_str++;
+    }
+    if (chips.size() > 0) {
+        desc->specify_enabled_devices(chips);
+    } else {
+        desc->enable_all_devices();
+    }
+
 
     return desc;
 }
