@@ -46,6 +46,17 @@ struct tlb_data {
     std::optional<uint64_t> apply_offset(const tlb_offsets& offset) const;
 };
 
+constexpr inline bool operator==(const tlb_data& lhs, const tlb_data& rhs) {
+    return lhs.local_offset == rhs.local_offset && lhs.x_end == rhs.x_end && lhs.y_end == rhs.y_end &&
+           lhs.x_start == rhs.x_start && lhs.y_start == rhs.y_start && lhs.noc_sel == rhs.noc_sel &&
+           lhs.mcast == rhs.mcast && lhs.ordering == rhs.ordering && lhs.linked == rhs.linked &&
+           lhs.static_vc == rhs.static_vc;
+}
+
+constexpr inline bool operator!=(const tlb_data& lhs, const tlb_data& rhs) {
+    return !(lhs == rhs);
+}
+
 struct tlb_configuration {
     uint32_t size;
     uint32_t base;
