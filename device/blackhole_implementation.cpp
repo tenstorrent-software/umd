@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "device/blackhole_implementation.h"
+#include "common/logger.hpp"
 
 namespace tt::umd {
 
@@ -31,15 +32,18 @@ std::optional<std::tuple<std::uint32_t, std::uint32_t>> blackhole_implementation
     std::int32_t tlb_index) const {
     std::uint32_t TLB_COUNT_2M = 202;
 
+    log_info(tt::LogSiliconDriver, "KCM inside {} w/ tlb_index: {}", __FUNCTION__, tlb_index);
+
     std::uint32_t TLB_BASE_2M = 0;
     if (tlb_index < 0) {
         return std::nullopt;
     }
 
     // Only have 2MB TLBs for now
-    if (tlb_index >= 0 && tlb_index < TLB_BASE_2M) {
+    if (tlb_index >= 0 && tlb_index < TLB_COUNT_2M) {
         auto tlb_offset = tlb_index;
         auto size = 1 << 21;
+        log_info(tt::LogSiliconDriver, "KCM index: {} tlb_offset: {} size: {}", tlb_index, tlb_offset, size);
         return std::tuple(TLB_BASE_2M + tlb_offset * size, size);
     }
 

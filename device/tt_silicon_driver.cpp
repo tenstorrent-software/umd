@@ -51,6 +51,7 @@
 //#include "epoch_q.h"
 
 #include <algorithm>
+// #include "utils/logger.hpp"
 #include "yaml-cpp/yaml.h"
 #include <filesystem>
 #include <string.h>
@@ -1318,7 +1319,7 @@ dynamic_tlb set_dynamic_tlb(PCIdevice* dev, unsigned int tlb_index, tt_xy_pair s
         std::tie(start, end) = architecture_implementation->multicast_workaround(start, end);
     }
 
-    LOG2("set_dynamic_tlb with arguments: tlb_index = %d, start = (%d, %d), end = (%d, %d), address = 0x%x, multicast = %d, ordering = %d\n",
+    PRINT("set_dynamic_tlb with arguments: tlb_index = %d, start = (%d, %d), end = (%d, %d), address = 0x%x, multicast = %d, ordering = %d\n",
          tlb_index, start.x, start.y, end.x, end.y, address, multicast, (int)ordering);
 
     tt::umd::tlb_configuration tlb_config = architecture_implementation->get_tlb_configuration(tlb_index);
@@ -1341,7 +1342,7 @@ dynamic_tlb set_dynamic_tlb(PCIdevice* dev, unsigned int tlb_index, tt_xy_pair s
         .static_vc = true,
     }.apply_offset(tlb_config.offset);
 
-    LOG1 ("set_dynamic_tlb() with tlb_index: %d tlb_index_offset: %d dynamic_tlb_size: %dMB tlb_base: 0x%x tlb_cfg_reg: 0x%x\n", tlb_index, tlb_config.index_offset, tlb_config.size/(1024*1024), tlb_base, tlb_cfg_reg);
+    PRINT ("set_dynamic_tlb() with tlb_index: %d tlb_index_offset: %d dynamic_tlb_size: %dMB tlb_base: 0x%x tlb_cfg_reg: 0x%x\n", tlb_index, tlb_config.index_offset, tlb_config.size/(1024*1024), tlb_base, tlb_cfg_reg);
     //write_regs(dev -> hdev, tlb_cfg_reg, 2, &tlb_data);
     write_tlb_reg(dev->hdev, tlb_cfg_reg, tlb_data.first, tlb_data.second, TLB_CFG_REG_SIZE_BYTES);
 
@@ -2091,8 +2092,8 @@ void tt_SiliconDevice::write_device_memory(const void *mem_ptr, uint32_t size_in
 
     const uint8_t* buffer_addr = static_cast<const uint8_t*>(mem_ptr);
 
-    // LOG1("---- tt_SiliconDevice::write_device_memory to chip:%lu %lu-%lu at 0x%x size_in_bytes: %d small_access: %d\n",
-    //     target.chip, target.x, target.y, address, size_in_bytes, small_access);
+    PRINT("---- tt_SiliconDevice::write_device_memory to chip:%lu %lu-%lu at 0x%x size_in_bytes: %d fallback_tlb: %s\n",
+        target.chip, target.x, target.y, address, size_in_bytes, fallback_tlb.c_str());
 
     std::int32_t tlb_index = 0;
     std::optional<std::tuple<std::uint32_t, std::uint32_t>> tlb_data = std::nullopt;
@@ -2102,18 +2103,57 @@ void tt_SiliconDevice::write_device_memory(const void *mem_ptr, uint32_t size_in
         tlb_data = dev->get_architecture_implementation()->describe_tlb(tlb_index);
     }
 
-    if (tlb_data.has_value() && address_in_tlb_space(address, size_in_bytes, tlb_index, std::get<1>(tlb_data.value()), target.chip)) {
-        log_assert(arch_name != tt::ARCH::BLACKHOLE, "Pre-initialized TLBs not supported in BH");
+    // KCM - Big hacks to use static TLB with memcpy for bottom of 0x30000000 on DRAM ch0
+    bool static_tlb = false;
+    const char* use_static_tlb_hack = std::getenv("USE_STATIC_TLB");
+    const char* use_memcpy = std::getenv("USE_MEMCPY");
+
+    bool do_special = use_static_tlb_hack;
+    if (do_special && address >= 0x30000000 && address <= 0x30200000 && target.x == 0 && target.y == 0) {
+        tlb_index = arch_name == tt::ARCH::BLACKHOLE ? 195 : 167;
+        PRINT("KCM SPECIAL CASE USING STATIC TLB idx: %d for addr: 0x%x\n", tlb_index, address);
+        static_tlb = true;
+        tlb_data = dev->get_architecture_implementation()->describe_tlb(tlb_index);
+    }
+
+    if (tlb_data.has_value() && (static_tlb or address_in_tlb_space(address, size_in_bytes, tlb_index, std::get<1>(tlb_data.value()), target.chip))) {
+        // log_assert(arch_name != tt::ARCH::BLACKHOLE, "Pre-initialized TLBs not supported in BH");
         auto [tlb_offset, tlb_size] = tlb_data.value();
-        write_block(dev, tlb_offset + address % tlb_size, size_in_bytes, buffer_addr, m_dma_buf_size);
+
+            // KCM : This works for Wormhole, but not Blackhole for some reason.
+            if (static_tlb && use_memcpy) {
+
+                PRINT("KCM TLB Init. Calling memcpy for size_in_bytes: %d buf_addr: %d tlb_index: %d tlb_offset: %d\n", size_in_bytes, buffer_addr, tlb_index, tlb_offset);
+                void* ch0_addr = channel_0_address(address, target.chip);
+
+                // Debugging information
+                std::cout << "ch0_addr: " << ch0_addr << "\n";
+                std::cout << "buffer_addr: " << static_cast<const void*>(buffer_addr) << "\n";
+                std::cout << "size_in_bytes: " << size_in_bytes << "\n";
+
+                // Ensure the pointers are valid
+                assert(buffer_addr != nullptr);
+                assert(reinterpret_cast<const void*>(buffer_addr) != nullptr);
+                assert(ch0_addr != nullptr);
+
+                // Perform the memory copy operation
+                std::cout << "KCM doing the memcpy now.." << std::endl;
+                memcpy(ch0_addr, buffer_addr, size_in_bytes);
+            } else {
+                PRINT("KCM TLB Init. Calling write_block for size_in_bytes: %d buf_addr: %d tlb_index: %d tlb_offset: %d\n", size_in_bytes, buffer_addr, tlb_index, tlb_offset);
+                write_block(dev, tlb_offset + address % tlb_size, size_in_bytes, buffer_addr, m_dma_buf_size);
+            }
+
     } else {
         const auto tlb_index = dynamic_tlb_config.at(fallback_tlb);
         const scoped_lock<named_mutex> lock(*get_mutex(fallback_tlb, pci_device -> id));
 
         while(size_in_bytes > 0) {
 
+            PRINT("KCM TLB Not init. Configuring dynamic TLB. size_in_bytes: %d buf_addr: %d tlb_index: %d\n", size_in_bytes, buffer_addr, tlb_index);
             auto [mapped_address, tlb_size] = set_dynamic_tlb(pci_device, tlb_index, target, address, harvested_coord_translation, dynamic_tlb_ordering_modes.at(fallback_tlb));
             uint32_t transfer_size = std::min(size_in_bytes, tlb_size);
+            log_info(tt::LogSiliconDriver, "KCM {} mapped_address: 0x{:x} transfer_size: {} size_in_bytes: {}", __FUNCTION__, mapped_address, transfer_size, size_in_bytes);
             write_block(dev, mapped_address, transfer_size, buffer_addr, m_dma_buf_size);
 
             size_in_bytes -= transfer_size;
@@ -2356,6 +2396,8 @@ uint32_t tt_SiliconDevice::get_m_dma_buf_size() const {
 }
 
 void tt_SiliconDevice::configure_tlb(chip_id_t logical_device_id, tt_xy_pair core, std::int32_t tlb_index, std::int32_t address, uint64_t ordering) {
+
+    log_info(tt::LogSiliconDriver, "KCM Calling configure_tlb for core: {} tlb_index: {} addr: 0x{:x}", core.str(), tlb_index, address);
     log_assert(ordering == TLB_DATA::Strict || ordering == TLB_DATA::Posted || ordering == TLB_DATA::Relaxed, "Invalid ordering specified in tt_SiliconDevice::configure_tlb");
     struct PCIdevice* pci_device = get_pci_device(logical_device_id);
     set_dynamic_tlb(pci_device, tlb_index, core, address, harvested_coord_translation, ordering);
@@ -3014,12 +3056,28 @@ void tt_SiliconDevice::enable_local_ethernet_queue(const chip_id_t &device_id, i
 
 
 void *tt_SiliconDevice::channel_0_address(std::uint32_t offset, std::uint32_t device_id) const {
+
+
+    log_info(tt::LogSiliconDriver, "KCM Calling channel_0_address with offset: 0x{:x}, device_id: {}\n", offset, device_id);
+
     // This hard-codes that we use 16MB TLB #1 onwards for the mapping. See tt_SiliconDevice::init_pcie_tlb.
     log_assert(ndesc->is_chip_mmio_capable(device_id), "Cannot call channel_0_address for non-MMIO device");
     struct PCIdevice* pci_device = get_pci_device(device_id);
     auto architecture_implementation = pci_device->hdev->get_architecture_implementation();
-    std::uint64_t bar0_offset = offset - architecture_implementation->get_dram_channel_0_peer2peer_region_start()
-                                + architecture_implementation->get_dynamic_tlb_16m_base() + architecture_implementation->get_dynamic_tlb_16m_size();
+    std::uint64_t bar0_offset;
+
+    // Temporary hack for blackhole bringup.
+    if (arch_name == tt::ARCH::BLACKHOLE) {
+
+        // Use 195th 2MB TLB onwards.
+        bar0_offset = offset - architecture_implementation->get_dram_channel_0_peer2peer_region_start()
+                        + architecture_implementation->get_dynamic_tlb_2m_base() + (195 * architecture_implementation->get_dynamic_tlb_2m_size());
+
+    } else {
+        // This hard-codes that we use 16MB TLB #1 onwards for the mapping. See tt_SiliconDevice::init_pcie_tlb.
+        bar0_offset = offset - architecture_implementation->get_dram_channel_0_peer2peer_region_start()
+                        + architecture_implementation->get_dynamic_tlb_16m_base() + architecture_implementation->get_dynamic_tlb_16m_size();
+    }
 
     return static_cast<std::byte*>(pci_device->hdev->bar0_wc) + bar0_offset;
 }
@@ -4223,7 +4281,7 @@ void tt_SiliconDevice::set_membar_flag(const chip_id_t chip, const std::unordere
                     cores_synced.insert(core);
                 }
                 else {
-                    log_trace(LogSiliconDriver, "Waiting for core {} to recieve mem bar flag {} in function", core.str(), barrier_value);
+                    log_trace(LogSiliconDriver, "Waiting for core {} to recieve mem bar flag {} in function. TLB: {}", core.str(), barrier_value, fallback_tlb.c_str());
                 }
             }
         }
