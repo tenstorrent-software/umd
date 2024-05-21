@@ -10,11 +10,18 @@
 #include "eth_l1_address_map.h"
 #include "eth_interface.h"
 #include "host_mem_address_map.h"
+#include <chrono>
 #include <thread>
 #include <memory>
 
 #include "device/tt_cluster_descriptor.h"
 #include "tests/test_utils/generate_cluster_desc.hpp"
+#include "common/logger.hpp"
+
+// #include "device/blackhole_implementation.h"
+// #include "device/grayskull_implementation.h"
+#include "device/wormhole_implementation.h"
+// #include "utils/logger.hpp"
 
 void set_params_for_remote_txn(tt_SiliconDevice& device) {
     // Populate address map and NOC parameters that the driver needs for remote transactions
@@ -328,6 +335,109 @@ TEST(SiliconDriverWH, StaticTLB_RW) {
     }
     device.close_device();    
 }
+
+TEST(SiliconDriverWH, StaticTLB_DRAM_Ch0_MMIO) {
+
+    std::set<chip_id_t> target_devices = {0, 1};
+
+    {
+        std::unique_ptr<tt_ClusterDescriptor> cluster_desc_uniq = tt_ClusterDescriptor::create_from_yaml(GetClusterDescYAML().string());
+        if (cluster_desc_uniq->get_number_of_chips() != target_devices.size()) {
+            GTEST_SKIP() << "SiliconDriverWH.Harvesting skipped because it can only be run on a two chip nebula system";
+        }
+    }
+
+    std::unordered_map<std::string, std::int32_t> dynamic_tlb_config = {}; // Don't set any dynamic TLBs in this test
+    uint32_t num_host_mem_ch_per_mmio_device = 1;
+    
+    tt_SiliconDevice device = tt_SiliconDevice("./tests/soc_descs/wormhole_b0_8x10.yaml", GetClusterDescYAML().string(), target_devices, num_host_mem_ch_per_mmio_device, dynamic_tlb_config, false, true, true);
+    set_params_for_remote_txn(device);
+    auto mmio_devices = device.get_target_mmio_device_ids();
+
+    for(int i = 0; i < target_devices.size(); i++) {
+        // Iterate over MMIO devices and only setup static TLBs for worker cores
+        if(std::find(mmio_devices.begin(), mmio_devices.end(), i) != mmio_devices.end()) {
+
+            uint32_t tlb_id = 167; // arch_name == tt::ARCH::BLACKHOLE ? 195 : 167;
+            uint64_t peer_dram_offset = tt::umd::wormhole::DRAM_CHANNEL_0_PEER2PEER_REGION_START;
+
+            device.configure_tlb(i, tt_xy_pair(tt::umd::wormhole::DRAM_CHANNEL_0_X, tt::umd::wormhole::DRAM_CHANNEL_0_Y), tlb_id, peer_dram_offset, TLB_DATA::Posted);
+            log_info(tt::LogSiliconDriver, "KCM - device: {} configure_tlb finished w/ tlb_id: {}, peer_dram_offset: 0x{:x}", i, tlb_id, peer_dram_offset);
+
+        } 
+    }
+    
+    tt_device_params default_params;
+    device.start_device(default_params);
+    device.deassert_risc_reset();
+
+    std::vector<uint32_t> vector_to_write = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+    std::vector<uint32_t> readback_vec = {};
+    std::vector<uint32_t> zeros = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    // Check functionality of Static TLBs by reading adn writing from statically mapped address space
+    for(int i = 0; i < target_devices.size(); i++) {
+
+        if(std::find(mmio_devices.begin(), mmio_devices.end(), i) == mmio_devices.end()) {
+            continue;
+        }
+
+        // Single write and read to DRAM channel 0.
+        int chan = 0;
+        auto core = device.get_virtual_soc_descriptors().at(i).get_core_for_dram_channel(chan, 0); // Port 0.
+        std::uint32_t address = tt::umd::wormhole::DRAM_CHANNEL_0_PEER2PEER_REGION_START; // 0x30000000
+        log_info(tt::LogSiliconDriver, "KCM Testing device: {} core: {} address: 0x{:x}", i, core.str(), address);
+
+        // KCM TODO - Use memcpy instead.
+        const char* use_memcpy = std::getenv("USE_MEMCPY_TEST");
+
+        if (use_memcpy) {
+            void* ch0_addr = device.channel_0_address(address, i);
+            const uint8_t* buffer_addr = reinterpret_cast<const uint8_t*>(vector_to_write.data());
+
+            uint32_t size_in_bytes = vector_to_write.size() * sizeof(uint32_t);
+
+            // Debugging information
+            std::cout << "ch0_addr: " << ch0_addr << "\n";
+            std::cout << "buffer_addr: " << static_cast<const void*>(buffer_addr) << "\n";
+            std::cout << "size_in_bytes: " << size_in_bytes << "\n";
+
+            // Ensure the pointers are valid
+            assert(buffer_addr != nullptr);
+            assert(reinterpret_cast<const void*>(buffer_addr) != nullptr);
+            assert(ch0_addr != nullptr);
+
+            log_info(tt::LogSiliconDriver, "Starting memcpy. size_in_bytes: {}", size_in_bytes);
+            memcpy(ch0_addr, buffer_addr, size_in_bytes);
+            std::this_thread::sleep_for(std::chrono::milliseconds(250)); // Don't know how to barrier for memcpy to complete.
+
+        } else {
+            log_info(tt::LogSiliconDriver, "Starting write_to_device");
+            device.write_to_device(vector_to_write, tt_cxy_pair(i, core), address, "LARGE_WRITE_TLB");
+        }
+
+        device.wait_for_non_mmio_flush(); // Barrier to ensure that all writes over ethernet were commited
+        log_info(tt::LogSiliconDriver, "Finished flush");
+        device.read_from_device(readback_vec, tt_cxy_pair(i, core), address, 40, "LARGE_READ_TLB");
+
+        auto write_size = vector_to_write.size();
+        for (int i=0; i<write_size; i++) {
+            log_info(tt::LogSiliconDriver, "Verifying idx: {} write_data: {} rd_data: {}", i, vector_to_write.at(i), readback_vec.at(i));
+        }
+
+        // log_info(tt::LogSiliconDriver, "Wrote to core: {} addr: 0x{:x} data: {} readback: {}", core.str(), address, vector_to_write, readback_vec);
+
+        ASSERT_EQ(vector_to_write, readback_vec) << "Vector read back from core " << core.x << "-" << core.y << "does not match what was written";
+        device.wait_for_non_mmio_flush();
+        device.write_to_device(zeros, tt_cxy_pair(i, core), address, "LARGE_WRITE_TLB"); // Clear any written data
+        device.wait_for_non_mmio_flush();
+        readback_vec = {};
+    }
+        
+
+    device.close_device();    
+}
+
+
 
 TEST(SiliconDriverWH, DynamicTLB_RW) {
     // Don't use any static TLBs in this test. All writes go through a dynamic TLB that needs to be reconfigured for each transaction

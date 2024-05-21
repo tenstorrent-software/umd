@@ -11,8 +11,12 @@
 #include "eth_interface.h"
 #include "host_mem_address_map.h"
 #include <thread>
-#include <util.hpp>
+// #include <util.hpp>
 #include <memory>
+
+#include "device/blackhole_implementation.h"
+#include "tests/test_utils/generate_cluster_desc.hpp"
+#include "common/logger.hpp"
 
 
 #include "device/tt_cluster_descriptor.h"
@@ -399,6 +403,95 @@ TEST(SiliconDriverBH, DynamicTLB_RW) {
     printf("Target DRAM completed\n");
 
     device.close_device();
+}
+
+
+// KCM - Example test to show static TLB pointing to DRAM Channel 0 can be used with write_to_device() and memcpy()
+TEST(SiliconDriverBH, StaticTLB_DRAM_Ch0_MMIO) {
+
+    std::set<chip_id_t> target_devices = {0};
+
+    std::unordered_map<std::string, std::int32_t> dynamic_tlb_config = {}; // Don't set any dynamic TLBs in this test
+    uint32_t num_host_mem_ch_per_mmio_device = 1;
+    
+    tt_SiliconDevice device = tt_SiliconDevice("./tests/soc_descs/blackhole_140_arch_no_eth.yaml",  "./blackhole_1chip_cluster.yaml", target_devices, num_host_mem_ch_per_mmio_device, dynamic_tlb_config, false, true, true);
+    set_params_for_remote_txn(device);
+    auto mmio_devices = device.get_target_mmio_device_ids();
+
+    for(int i = 0; i < target_devices.size(); i++) {
+        // Iterate over MMIO devices and only setup static TLBs for worker cores
+        if(std::find(mmio_devices.begin(), mmio_devices.end(), i) != mmio_devices.end()) {
+
+            uint32_t tlb_id = 195; // arch_name == tt::ARCH::BLACKHOLE ? 195 : 167;
+            uint64_t peer_dram_offset = tt::umd::blackhole::DRAM_CHANNEL_0_PEER2PEER_REGION_START;
+            device.configure_tlb(i, tt_xy_pair(0, 1), tlb_id, peer_dram_offset, TLB_DATA::Posted);
+            log_info(tt::LogSiliconDriver, "KCM - device: {} configure_tlb finished w/ tlb_id: {}, peer_dram_offset: 0x{:x}", i, tlb_id, peer_dram_offset);
+        } 
+    }
+    
+    tt_device_params default_params;
+    device.start_device(default_params);
+    device.deassert_risc_reset();
+
+    std::vector<uint32_t> vector_to_write = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+    std::vector<uint32_t> readback_vec = {};
+    std::vector<uint32_t> zeros = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    // Check functionality of Static TLBs by reading adn writing from statically mapped address space
+    for(int i = 0; i < target_devices.size(); i++) {
+
+        if(std::find(mmio_devices.begin(), mmio_devices.end(), i) == mmio_devices.end()) {
+            continue;
+        }
+
+        // Single write and read to DRAM channel 0.
+        int chan = 0;
+        auto core = device.get_virtual_soc_descriptors().at(i).get_core_for_dram_channel(chan, 0); // Port 0.
+        std::uint32_t address = tt::umd::blackhole::DRAM_CHANNEL_0_PEER2PEER_REGION_START; // 0x30000000
+        log_info(tt::LogSiliconDriver, "KCM Testing device: {} core: {} address: 0x{:x}", i, core.str(), address);
+
+        const char* use_memcpy = std::getenv("USE_MEMCPY_TEST");
+
+        if (use_memcpy) {
+            void* ch0_addr = device.channel_0_address(address, i);
+            const uint8_t* buffer_addr = reinterpret_cast<const uint8_t*>(vector_to_write.data());
+            uint32_t size_in_bytes = vector_to_write.size() * sizeof(uint32_t);
+
+            // Debugging information
+            std::cout << "ch0_addr: " << ch0_addr << "\n";
+            std::cout << "buffer_addr: " << static_cast<const void*>(buffer_addr) << "\n";
+            std::cout << "size_in_bytes: " << size_in_bytes << "\n";
+
+            // Ensure the pointers are valid
+            assert(buffer_addr != nullptr);
+            assert(reinterpret_cast<const void*>(buffer_addr) != nullptr);
+            assert(ch0_addr != nullptr);
+
+            log_info(tt::LogSiliconDriver, "Starting memcpy. size_in_bytes: {}", size_in_bytes);
+            memcpy(ch0_addr, buffer_addr, size_in_bytes);
+            std::this_thread::sleep_for(std::chrono::milliseconds(250)); // Don't know how to barrier for memcpy to complete.
+        } else {
+            log_info(tt::LogSiliconDriver, "Starting write_to_device");
+            device.write_to_device(vector_to_write, tt_cxy_pair(i, core), address, "LARGE_WRITE_TLB");
+        }
+
+        device.wait_for_non_mmio_flush(); // Barrier to ensure that all writes over ethernet were commited
+        log_info(tt::LogSiliconDriver, "Finished flush");
+        device.read_from_device(readback_vec, tt_cxy_pair(i, core), address, 40, "LARGE_READ_TLB");
+
+        auto write_size = vector_to_write.size();
+        for (int i=0; i<write_size; i++) {
+            log_info(tt::LogSiliconDriver, "Verifying idx: {} write_data: {} rd_data: {}", i, vector_to_write.at(i), readback_vec.at(i));
+        }
+
+        ASSERT_EQ(vector_to_write, readback_vec) << "Vector read back from core " << core.x << "-" << core.y << "does not match what was written";
+        device.wait_for_non_mmio_flush();
+        device.write_to_device(zeros, tt_cxy_pair(i, core), address, "LARGE_WRITE_TLB"); // Clear any written data
+        device.wait_for_non_mmio_flush();
+        readback_vec = {};
+    }
+        
+
+    device.close_device();    
 }
 
 // TEST(SiliconDriverWH, MultiThreadedDevice) {
