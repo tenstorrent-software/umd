@@ -468,6 +468,7 @@ TEST(SiliconDriverBH, StaticTLB_DRAM_Ch0_MMIO) {
 
             log_info(tt::LogSiliconDriver, "Starting memcpy. size_in_bytes: {}", size_in_bytes);
             memcpy(ch0_addr, buffer_addr, size_in_bytes);
+            log_info(tt::LogSiliconDriver, "Done memcpy()");
             std::this_thread::sleep_for(std::chrono::milliseconds(250)); // Don't know how to barrier for memcpy to complete.
         } else {
             log_info(tt::LogSiliconDriver, "Starting write_to_device");
