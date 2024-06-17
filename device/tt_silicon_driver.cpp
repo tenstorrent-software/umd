@@ -136,6 +136,17 @@ uint32_t pcie_dma_transfer_turbo (TTDevice *dev, uint32_t chip_addr, uint32_t ho
 DMAbuffer pci_allocate_dma_buffer(TTDevice *dev, uint32_t size);
 void pcie_init_dma_transfer_turbo (PCIdevice* dev);
 
+// For debug purposes when various stages fails.
+void print_file_contents(std::string filename, std::string hint = ""){
+    if (std::filesystem::exists(filename)){
+        std::ifstream meminfo(filename);
+        if (meminfo.is_open()){
+            std::cout << std::endl << "File " << filename << " " << hint << " is: " << std::endl;
+            std::cout << meminfo.rdbuf();
+        }
+    }
+}
+
 // Stash all the fields of TTDevice in TTDeviceBase to make moving simpler.
 struct TTDeviceBase
 {
@@ -1341,7 +1352,7 @@ dynamic_tlb set_dynamic_tlb(PCIdevice* dev, unsigned int tlb_index, tt_xy_pair s
     std::uint32_t TLB_CFG_REG_SIZE_BYTES = architecture_implementation->get_tlb_cfg_reg_size_bytes();
     auto translated_start_coords = harvested_coord_translation.at(dev -> logical_id).at(start);
     auto translated_end_coords = harvested_coord_translation.at(dev -> logical_id).at(end);
-    uint32_t tlb_address    = address / tlb_config.size;
+    uint64_t tlb_address    = address / tlb_config.size;
     uint32_t local_offset   = address % tlb_config.size;
     uint32_t tlb_base       = tlb_config.base + (tlb_config.size * tlb_config.index_offset);
     uint32_t tlb_cfg_reg    = tlb_config.cfg_addr + (TLB_CFG_REG_SIZE_BYTES * tlb_config.index_offset);
@@ -1375,7 +1386,7 @@ dynamic_tlb set_dynamic_tlb_broadcast(PCIdevice *dev, unsigned int tlb_index, st
                             address, true, harvested_coord_translation, ordering);
 }
 
-bool tt_SiliconDevice::address_in_tlb_space(uint32_t address, uint32_t size_in_bytes, int32_t tlb_index, uint32_t tlb_size, std::uint32_t chip) {
+bool tt_SiliconDevice::address_in_tlb_space(uint64_t address, uint32_t size_in_bytes, int32_t tlb_index, uint32_t tlb_size, std::uint32_t chip) {
     return ((tlb_config_map.at(chip).find(tlb_index) != tlb_config_map.at(chip).end()) && address >= tlb_config_map.at(chip).at(tlb_index) && (address + size_in_bytes <= tlb_config_map.at(chip).at(tlb_index) + tlb_size));
 }
 
@@ -1469,7 +1480,7 @@ void tt_SiliconDevice::create_device(const std::unordered_set<chip_id_t> &target
 
         // MT: Initial BH
         if (arch_name == tt::ARCH::BLACKHOLE) {
-            m_num_host_mem_channels = 0;
+            m_num_host_mem_channels = num_host_mem_ch_per_mmio_device;
         } else {
             m_num_host_mem_channels = get_available_num_host_mem_channels(num_host_mem_ch_per_mmio_device, pci_device->device_id, pci_device->revision_id);
         }
@@ -1493,10 +1504,25 @@ void tt_SiliconDevice::create_device(const std::unordered_set<chip_id_t> &target
         if (!skip_driver_allocs)
             print_device_info (*pci_device);
 
+        detect_iommu(target_mmio_device_ids);
+
         // MT: Initial BH - hugepages will fail init
         // For using silicon driver without workload to query mission mode params, no need for hugepage/dmabuf.
         if (!skip_driver_allocs){
-            bool hugepages_initialized = init_hugepage(logical_device_id);
+            bool hugepages_initialized = false;
+            if (m_iommu && arch_name == tt::ARCH::BLACKHOLE) {
+                // If we have an IOMMU and a KMD that supports it, we can use regular memory rather than hugepages, with
+                // IOMMU providing the illusion of physical contiguity rather than the hardware iATU + hugepages.  As of
+                // 6/2024, Blackhole firmware does not yet support iATU programming.
+                //
+                // A caveat is that multiple processes will not be able to map the same underlying memory into their
+                // address spaces, as they are able to with the hugepage scheme.
+                hugepages_initialized = init_iommu_allocations(logical_device_id);
+                // NB: not actual hugepages!
+
+            } else {
+                hugepages_initialized = init_hugepage(logical_device_id);
+            }
             // Large writes to remote chips require hugepages to be initialized.
             // Conservative assert - end workload if remote chips present but hugepages not initialized (failures caused if using remote only for small transactions)
             if(target_remote_chips.size()) {
@@ -1518,6 +1544,105 @@ void tt_SiliconDevice::create_device(const std::unordered_set<chip_id_t> &target
         }
     }
 }
+
+namespace {
+std::string read_file(const std::string &filename) {
+    std::ifstream input(filename);
+    std::ostringstream buf;
+    buf << input.rdbuf();
+    return buf.str();
+}
+}
+
+std::string tt_SiliconDevice::sysfs_path(chip_id_t logical_device_id) const {
+    PCIdevice* dev = m_pci_device_map.at(logical_device_id);
+
+    static const char pattern[] = "/sys/bus/pci/devices/0000:%02x:%02x.%u";
+    char buf[sizeof(pattern)];
+    std::snprintf(buf, sizeof(buf), pattern, dev->dwBus, dev->dwSlot, dev->dwFunction);
+    return buf;
+}
+
+bool tt_SiliconDevice::is_iommu(chip_id_t logical_device_id) const {
+    std::string iommu_type = read_file(sysfs_path(logical_device_id) + "/iommu_group/type");
+    return iommu_type.substr(0, 3) == "DMA"; // Expecting DMA or DMA-FQ.
+}
+
+void tt_SiliconDevice::detect_iommu(const std::unordered_set<chip_id_t> &target_mmio_device_ids) {
+    bool any_iommu = false;
+    bool any_not_iommu = false;
+
+    for (auto chip : target_mmio_device_ids) {
+        if (is_iommu(chip)) {
+            any_iommu = true;
+        } else {
+            any_not_iommu = true;
+        }
+    }
+
+    if (any_iommu && any_not_iommu) {
+        throw std::runtime_error("Some devices have IOMMU enabled, but others don't. This shouldn't be possible and it isn't going to work.");
+    }
+
+    LOG1("Choosing %sIOMMU allocation.\n", (any_iommu ? "" : "non-"));
+
+    m_iommu = any_iommu;
+}
+
+bool tt_SiliconDevice::init_iommu_allocations(chip_id_t device_id) {
+    const auto physical_device_id = m_pci_device_map.at(device_id)->id;
+    auto mapping_size = m_num_host_mem_channels * HUGEPAGE_REGION_SIZE;
+
+    log_assert(arch_name == tt::ARCH::BLACKHOLE, "Blackhole only");
+
+    void *mapping = mmap(nullptr, mapping_size, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE | MAP_POPULATE, -1, 0);
+
+    if (mapping == MAP_FAILED) {
+        WARN("---- ttSiliconDevice::init_iommu_allocations: physical_device_id: %d mmap size: %lu mmap failed (errno: "
+        "%s). Possibly out of memory, see following file contents...\n",
+        physical_device_id,
+        mapping_size,
+        strerror(errno));
+        print_file_contents("/proc/meminfo");
+        print_file_contents("/proc/buddyinfo");
+        return false;
+    }
+
+    tenstorrent_pin_pages pin_pages;
+    memset(&pin_pages, 0, sizeof(pin_pages));
+    pin_pages.in.output_size_bytes = sizeof(pin_pages.out);
+    pin_pages.in.flags = TENSTORRENT_PIN_PAGES_INTO_IOMMU;
+    pin_pages.in.virtual_address = reinterpret_cast<std::uintptr_t>(mapping);
+    pin_pages.in.size = mapping_size;
+
+    auto &fd = m_pci_device_map.at(device_id)->hdev->device_fd;
+
+    if (ioctl(fd, TENSTORRENT_IOCTL_PIN_PAGES, &pin_pages) == -1) {
+        munmap(mapping, mapping_size);
+
+        WARN("---- ttSiliconDevice::init_iommu_allocations: physical_device_id: %d TENSTORRENT_IOCTL_PIN_PAGES failed"
+             "(errno: %s). Common Issues: Requires IOMMU-enabled TTMKD; too many host memory channels; see following "
+             "file contents...\n", physical_device_id, strerror(errno));
+        print_file_contents("/sys/module/tenstorrent/version", "(TTKMD version)");
+        print_file_contents("/proc/meminfo");
+        print_file_contents("/proc/buddyinfo");
+
+        throw std::runtime_error("Fail");
+    }
+
+    for (size_t ch = 0; ch < m_num_host_mem_channels; ch++) {
+        uint8_t *mapping8 = reinterpret_cast<uint8_t *>(mapping) + (ch * HUGEPAGE_REGION_SIZE);
+        uint64_t iova = pin_pages.out.physical_address + (ch * HUGEPAGE_REGION_SIZE);
+        hugepage_mapping.at(device_id).at(ch) = mapping8;
+        hugepage_mapping_size.at(device_id).at(ch) = HUGEPAGE_REGION_SIZE;
+        hugepage_physical_address.at(device_id).at(ch) = iova;
+
+        PRINT("---- ttSiliconDevice::init_iommu_allocations: physical_device_id: %d ch: %d mapping: %p IOVA: 0x%lx\n", physical_device_id, ch, mapping8, iova);
+    }
+
+    return true;
+}
+
 
 bool tt_SiliconDevice::noc_translation_en() {
     return translation_tables_en;
@@ -2130,7 +2255,7 @@ tt::Writer tt_SiliconDevice::get_static_tlb_writer(tt_cxy_pair target) {
     return tt::Writer(base + tlb_offset, tlb_size);
 }
 
-void tt_SiliconDevice::write_device_memory(const void *mem_ptr, uint32_t size_in_bytes, tt_cxy_pair target, std::uint32_t address, const std::string& fallback_tlb) {
+void tt_SiliconDevice::write_device_memory(const void *mem_ptr, uint32_t size_in_bytes, tt_cxy_pair target, std::uint64_t address, const std::string& fallback_tlb) {
     struct PCIdevice* pci_device = get_pci_device(target.chip);
     TTDevice *dev = pci_device->hdev;
 
@@ -2169,7 +2294,7 @@ void tt_SiliconDevice::write_device_memory(const void *mem_ptr, uint32_t size_in
     }
 }
 
-void tt_SiliconDevice::read_device_memory(void *mem_ptr, tt_cxy_pair target, std::uint32_t address, std::uint32_t size_in_bytes, const std::string& fallback_tlb) {
+void tt_SiliconDevice::read_device_memory(void *mem_ptr, tt_cxy_pair target, std::uint64_t address, std::uint32_t size_in_bytes, const std::string& fallback_tlb) {
     // Assume that mem_ptr has been allocated adequate memory on host when this function is called. Otherwise, this function will cause a segfault.
     LOG1("---- tt_SiliconDevice::read_device_memory to chip:%lu %lu-%lu at 0x%x size_in_bytes: %d\n", target.chip, target.x, target.y, address, size_in_bytes);
     struct PCIdevice* pci_device = get_pci_device(target.chip);
@@ -2702,17 +2827,6 @@ bool tt_SiliconDevice::uninit_dma_turbo_buf (struct PCIdevice* pci_device) {
         munmap(xfer_buffer.pBuf, xfer_buffer.size);
     }
     return true;
-}
-
-// For debug purposes when various stages fails.
-void print_file_contents(std::string filename, std::string hint = ""){
-    if (std::filesystem::exists(filename)){
-        std::ifstream meminfo(filename);
-        if (meminfo.is_open()){
-            std::cout << std::endl << "File " << filename << " " << hint << " is: " << std::endl;
-            std::cout << meminfo.rdbuf();
-        }
-    }
 }
 
 // Initialize hugepage, N per device (all same size).
@@ -4741,8 +4855,16 @@ std::uint32_t tt_SiliconDevice::get_numa_node_for_pcie_device(std::uint32_t devi
     return get_numa_node(get_pci_device(device_id)->hdev);
 }
 
-std::uint64_t tt_SiliconDevice::get_pcie_base_addr_from_device() const {
-    if(arch_name == tt::ARCH::WORMHOLE or arch_name == tt::ARCH::WORMHOLE_B0) {
+std::uint64_t tt_SiliconDevice::get_pcie_base_addr_from_device(uint32_t device_id) const {
+    if (arch_name == tt::ARCH::BLACKHOLE && m_iommu) {
+        // This assumes no iATU configuration has been performed and that there
+        // exists a single contiguous address space starting at the first
+        // "physical" address that is (m_num_host_mem_channels * 1024^3) bytes
+        // long.
+
+        return hugepage_physical_address.at(device_id).at(0);
+    }
+    if (arch_name == tt::ARCH::WORMHOLE or arch_name == tt::ARCH::WORMHOLE_B0) {
         return 0x800000000;
     }
     else {

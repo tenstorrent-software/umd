@@ -661,8 +661,8 @@ class tt_device
         return nullptr;
     }
 
-    virtual std::uint64_t get_pcie_base_addr_from_device() const {
-        throw std::runtime_error("---- tt_device::get_pcie_base_addr_from_device is not implemented\n");
+    virtual std::uint64_t get_pcie_base_addr_from_device(uint32_t device_id = 0) const {
+        throw std::runtime_error("---- tt_device::get_pcie_base_addr_from_device(uint32_t) is not implemented\n");
         return 0;
     }
     const tt_SocDescriptor *get_soc_descriptor(chip_id_t chip) const;
@@ -846,7 +846,7 @@ class tt_SiliconDevice: public tt_device
     virtual uint32_t dma_allocation_size(chip_id_t src_device_id = -1);
     virtual void *channel_0_address(std::uint32_t offset, std::uint32_t device_id) const;
     virtual void *host_dma_address(std::uint64_t offset, chip_id_t src_device_id, uint16_t channel) const;
-    virtual std::uint64_t get_pcie_base_addr_from_device() const;
+    virtual std::uint64_t get_pcie_base_addr_from_device(uint32_t device_id = 0) const;
     static std::vector<int> extract_rows_to_remove(const tt::ARCH &arch, const int worker_grid_rows, const int harvested_rows);
     static void remove_worker_row_from_descriptor(tt_SocDescriptor& full_soc_descriptor, const std::vector<int>& row_coordinates_to_remove);
     static void harvest_rows_in_soc_descriptor(tt::ARCH arch, tt_SocDescriptor& sdesc, uint32_t harvested_rows);
@@ -866,6 +866,8 @@ class tt_SiliconDevice: public tt_device
 
     private:
     // Helper functions
+    std::string sysfs_path(chip_id_t logical_device_id) const;
+
     // Startup + teardown
     void create_device(const std::unordered_set<chip_id_t> &target_mmio_device_ids, const uint32_t &num_host_mem_ch_per_mmio_device, const bool skip_driver_allocs, const bool clean_system_resources);
     void initialize_interprocess_mutexes(int pci_interface_id, bool cleanup_mutexes_in_shm);
@@ -881,6 +883,8 @@ class tt_SiliconDevice: public tt_device
     void init_pcie_iatus_no_p2p();
     bool init_hugepage(chip_id_t device_id);
     bool init_dmabuf(chip_id_t device_id);
+    bool init_iommu_allocations(chip_id_t device_id);
+    void initial_allocations(chip_id_t logical_device_id);
     void check_pcie_device_initialized(int device_id);
     bool init_dma_turbo_buf(struct PCIdevice* pci_device);
     bool uninit_dma_turbo_buf(struct PCIdevice* pci_device);
@@ -898,13 +902,15 @@ class tt_SiliconDevice: public tt_device
     uint32_t get_harvested_noc_rows (uint32_t harvesting_mask);
     uint32_t get_harvested_rows (int logical_device_id);
     int get_clock(int logical_device_id);
+    bool is_iommu(chip_id_t logical_device_id) const;
+    void detect_iommu(const std::unordered_set<chip_id_t> &target_mmio_device_ids); // writes m_iommu
 
     // Communication Functions
     void read_dma_buffer(void* mem_ptr, std::uint32_t address, std::uint16_t channel, std::uint32_t size_in_bytes, chip_id_t src_device_id);
     void write_dma_buffer(const void *mem_ptr, std::uint32_t size, std::uint32_t address, std::uint16_t channel, chip_id_t src_device_id);
-    void write_device_memory(const void *mem_ptr, uint32_t size_in_bytes, tt_cxy_pair target, std::uint32_t address, const std::string& fallback_tlb);
+    void write_device_memory(const void *mem_ptr, uint32_t size_in_bytes, tt_cxy_pair target, std::uint64_t address, const std::string& fallback_tlb);
     void write_to_non_mmio_device(const void *mem_ptr, uint32_t size_in_bytes, tt_cxy_pair core, uint64_t address, bool broadcast = false, std::vector<int> broadcast_header = {});
-    void read_device_memory(void *mem_ptr, tt_cxy_pair target, std::uint32_t address, std::uint32_t size_in_bytes, const std::string& fallback_tlb);
+    void read_device_memory(void *mem_ptr, tt_cxy_pair target, std::uint64_t address, std::uint32_t size_in_bytes, const std::string& fallback_tlb);
     void write_to_non_mmio_device_send_epoch_cmd(const uint32_t *mem_ptr, uint32_t size_in_bytes, tt_cxy_pair core, uint64_t address, bool last_send_epoch_cmd, bool ordered_with_prev_remote_write);
     void rolled_write_to_non_mmio_device(const uint32_t *mem_ptr, uint32_t len, tt_cxy_pair core, uint64_t address, uint32_t unroll_count);
     void read_from_non_mmio_device(void* mem_ptr, tt_cxy_pair core, uint64_t address, uint32_t size_in_bytes);
@@ -921,7 +927,7 @@ class tt_SiliconDevice: public tt_device
     bool is_non_mmio_cmd_q_full(uint32_t curr_wptr, uint32_t curr_rptr);
     int pcie_arc_msg(int logical_device_id, uint32_t msg_code, bool wait_for_done = true, uint32_t arg0 = 0, uint32_t arg1 = 0, int timeout=1, uint32_t *return_3 = nullptr, uint32_t *return_4 = nullptr);
     int remote_arc_msg(int logical_device_id, uint32_t msg_code, bool wait_for_done = true, uint32_t arg0 = 0, uint32_t arg1 = 0, int timeout=1, uint32_t *return_3 = nullptr, uint32_t *return_4 = nullptr);
-    bool address_in_tlb_space(uint32_t address, uint32_t size_in_bytes, int32_t tlb_index, uint32_t tlb_size, uint32_t chip);
+    bool address_in_tlb_space(uint64_t address, uint32_t size_in_bytes, int32_t tlb_index, uint32_t tlb_size, uint32_t chip);
     struct PCIdevice* get_pci_device(int pci_intf_id) const;
     std::shared_ptr<boost::interprocess::named_mutex> get_mutex(const std::string& tlb_name, int pci_interface_id);
     virtual uint32_t get_harvested_noc_rows_for_chip(int logical_device_id); // Returns one-hot encoded harvesting mask for PCIe mapped chips
@@ -984,7 +990,7 @@ class tt_SiliconDevice: public tt_device
     std::unordered_map<chip_id_t, std::unordered_map<int, void *>> hugepage_mapping;
     std::unordered_map<chip_id_t, std::unordered_map<int, std::size_t>> hugepage_mapping_size;
     std::unordered_map<chip_id_t, std::unordered_map<int, std::uint64_t>> hugepage_physical_address;
-    std::map<chip_id_t, std::unordered_map<std::int32_t, std::int32_t>> tlb_config_map = {};
+    std::map<chip_id_t, std::unordered_map<std::int32_t, uint64_t>> tlb_config_map = {};
     std::set<chip_id_t> all_target_mmio_devices;
     std::unordered_map<chip_id_t, std::vector<uint32_t>> host_channel_size;
     std::function<std::int32_t(tt_xy_pair)> map_core_to_tlb;
@@ -994,6 +1000,7 @@ class tt_SiliconDevice: public tt_device
     std::uint64_t buf_physical_addr = 0;
     void * buf_mapping = nullptr;
     int driver_id;  
+    bool m_iommu = false;
     bool perform_harvesting_on_sdesc = false;
     bool use_ethernet_ordered_writes = true;
     bool use_ethernet_broadcast = true;
