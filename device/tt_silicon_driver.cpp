@@ -1652,6 +1652,7 @@ tt_SiliconDevice::tt_SiliconDevice(const std::string &sdesc_path, const std::str
     if (!skip_driver_allocs)
         log_info(LogSiliconDriver, "Detected {} PCI device{} : {}", m_num_pci_devices, (m_num_pci_devices > 1) ? "s":"", available_device_ids);
 
+    log_info(tt::LogSiliconDriver, "tu sam ndesc_path {}", ndesc_path);
     if (ndesc_path == "") {
         ndesc = tt_ClusterDescriptor::create_for_grayskull_cluster(target_devices, available_device_ids);
     }

@@ -316,6 +316,7 @@ chip_id_t tt_ClusterDescriptor::get_closest_mmio_capable_chip(const chip_id_t &c
 }
 
 std::unique_ptr<tt_ClusterDescriptor> tt_ClusterDescriptor::create_from_yaml(const std::string &cluster_descriptor_file_path) {
+    log_info(tt::LogSiliconDriver, "cluster_descriptor_file_path : {}", cluster_descriptor_file_path);
     std::unique_ptr<tt_ClusterDescriptor> desc = std::unique_ptr<tt_ClusterDescriptor>(new tt_ClusterDescriptor());
 
     std::ifstream fdesc(cluster_descriptor_file_path);
