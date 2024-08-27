@@ -9,6 +9,7 @@
 #include <memory>
 #include <sstream> 
 
+#include "common/backtrace.hpp"
 #include "common/logger.hpp"
 #include "yaml-cpp/yaml.h"
 
@@ -320,6 +321,8 @@ std::unique_ptr<tt_ClusterDescriptor> tt_ClusterDescriptor::create_from_yaml(con
     std::unique_ptr<tt_ClusterDescriptor> desc = std::unique_ptr<tt_ClusterDescriptor>(new tt_ClusterDescriptor());
 
     std::ifstream fdesc(cluster_descriptor_file_path);
+    assert::backtrace();
+    log_info(tt::LogSiliconDriver, "backtrace: {}", assert::backtrace_to_string());
     if (fdesc.fail()) {
         throw std::runtime_error("Error: cluster connectivity descriptor file " + cluster_descriptor_file_path + " does not exist!");
     }
