@@ -207,9 +207,10 @@ struct tt_device_params {
 };
 
 /**
- * @brief Parent class for tt_SiliconDevice (Silicon Driver).
- * Exposes a generic interface to callers, providing declarations for virtual functions defined differently for Silicon.
- * Valid usage consists of declaring a tt_device object and initializing it to Silicon backend.
+ * @brief Parent class for tt_SiliconDevice (Silicon Driver) and tt_VersimDevice (Versim Backend API).
+ * Exposes a generic interface to callers, providing declarations for virtual functions defined differently for
+ * Silicon and Versim.
+ * Valid usage consists of declaring a tt_device object and initializing it to either a Silicon or Versim backend.
  * Using tt_device itself will throw errors, since its APIs are undefined.
  */ 
 class tt_device
@@ -285,7 +286,7 @@ class tt_device
         throw std::runtime_error("---- tt_device::configure_active_ethernet_cores_for_mmio_device is not implemented\n");
     }
     /** 
-     * @brief
+     * @brief Start the Silicon on Versim Device
      * On Silicon: Assert soft Tensix reset, deassert RiscV reset, set power state to busy (ramp up AICLK), initialize iATUs for PCIe devices and ethernet queues for remote chips.
      * \param device_params tt_device_params object specifying initialization configuration
     */
@@ -353,7 +354,7 @@ class tt_device
         throw std::runtime_error("---- tt_device::broadcast_write_to_cluster is not implemented\n");
     }
     /**
-    * @brief Write uint32_t vector to specified device, core and address (defined for Silicon).
+    * @brief Write uint32_t vector to specified device, core and address (defined for Silicon and Versim).
     * \param vec Vector to write
     * \param core chip-x-y struct specifying device and core
     * \param addr Address to write to
@@ -377,7 +378,7 @@ class tt_device
     }
 
     /**
-    * @brief Read a uint32_t vector from a specified device, core and address to host memory (defined for Silicon).
+    * @brief Read a uint32_t vector from a specified device, core and address to host memory (defined for Silicon and Versim).
     * \param vec host side vector to populate with data read from device (does not need to be preallocated)
     * \param core chip-x-y struct specifying device and core
     * \param addr Address to read from
