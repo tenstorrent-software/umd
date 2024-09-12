@@ -52,16 +52,6 @@ std::vector<std::tuple<ethernet_channel_t, ethernet_channel_t>> tt_ClusterDescri
     return directly_connected_channels;
 }
 
-// const eth_coord_t tt_ClusterDescriptor::get_chip_xy(const chip_id_t &chip_id) const {
-//     // For now we only support a 1D cluster, so the mapping is trivial (where the chip ID is the x value of the xy
-//     location) return eth_coord_t(chip_id, 0, 0, 0);
-// }
-
-// const chip_id_t tt_ClusterDescriptor::get_chip_id_at_location(const eth_coord_t &chip_location) const {
-//     // For now we only support a 1D cluster, so the mapping is trivial (where the chip ID is the x value of the xy
-//     location) return chip_location.x;
-// }
-
 bool tt_ClusterDescriptor::is_chip_mmio_capable(const chip_id_t &chip_id) const {
     return this->chips_with_mmio.find(chip_id) != this->chips_with_mmio.end();
 }

@@ -83,8 +83,6 @@ class tt_ClusterDescriptor {
   static std::unique_ptr<tt_ClusterDescriptor> create_for_grayskull_cluster(
       const std::set<chip_id_t> &logical_mmio_device_ids,
       const std::vector<chip_id_t> &physical_mmio_device_ids);
-  // const eth_coord_t get_chip_xy(const chip_id_t &chip_id) const;
-  // const chip_id_t get_chip_id_at_location(const eth_coord_t &chip_location) const;
 
   std::unordered_map<chip_id_t, std::uint32_t> get_harvesting_info() const;
   std::unordered_map<chip_id_t, bool> get_noc_translation_table_en() const;
