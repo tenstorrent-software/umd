@@ -20,6 +20,9 @@ namespace tt {
  *
  * It is the caller's responsibility to manage the lifetime of Writer objects.
  */
+
+// This could be what we call TLBWindow in our proposed design
+
 class Writer
 {
     friend class ::tt_SiliconDevice;
@@ -46,7 +49,6 @@ public:
 
         *reinterpret_cast<volatile T*>(dst) = value;
     }
-
 private:
     /**
      * @brief tt_SiliconDriver interface to construct a new Writer object.
