@@ -206,7 +206,7 @@ TEST(ApiClusterTest, SimpleIOAllChips) {
 
 TEST(ApiTest, RemoteFlush) {
 
-    std::unique_ptr<tt_ClusterDescriptor> cluster_desc = get_cluster_descriptor();
+    std::unique_ptr<tt_ClusterDescriptor> cluster_desc = get_cluster_desc();
     std::unique_ptr<Cluster> umd_cluster = get_cluster();
 
     if (umd_cluster == nullptr || umd_cluster->get_all_chips_in_cluster().empty()) {
