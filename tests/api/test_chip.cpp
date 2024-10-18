@@ -126,14 +126,15 @@ TEST(ApiChipTest, ManualTLBConfiguration) {
     tt_xy_pair core = soc_desc.workers[0];
     EXPECT_THROW(umd_cluster->get_static_tlb_writer(tt_cxy_pair(any_mmio_chip, core)), std::runtime_error);
 
+    // TODO: This should be part of TTDevice interface, not Cluster or Chip.
     // Configure TLBs.
-    std::function<int(tt_xy_pair)> get_static_tlb_index = [&soc_desc](tt_xy_pair core) -> int {
+    std::function<int(tt_xy_pair)> get_static_tlb_index = [&](tt_xy_pair core) -> int {
         // TODO: Make this per arch.
         bool is_worker_core = soc_desc.is_worker_core(core);
         if (!is_worker_core) {
             return -1;
         }
-        return core.x + core.y * 14;
+        return core.x + core.y * umd_cluster->get_pci_device(any_mmio_chip)->get_architecture_implementation()->get_grid_size_x();
     };
 
     std::int32_t c_zero_address = 0;
@@ -155,6 +156,8 @@ TEST(ApiChipTest, ManualTLBConfiguration) {
     // Expect to throw for non worker cores.
     tt_xy_pair dram_core = soc_desc.dram_cores[0][0];
     EXPECT_THROW(umd_cluster->get_static_tlb_writer(tt_cxy_pair(any_mmio_chip, dram_core)), std::runtime_error);
-    tt_xy_pair eth_core = soc_desc.ethernet_cores[0];
-    EXPECT_THROW(umd_cluster->get_static_tlb_writer(tt_cxy_pair(any_mmio_chip, eth_core)), std::runtime_error);
+    if (!soc_desc.ethernet_cores.empty()) {
+        tt_xy_pair eth_core = soc_desc.ethernet_cores[0];
+        EXPECT_THROW(umd_cluster->get_static_tlb_writer(tt_cxy_pair(any_mmio_chip, eth_core)), std::runtime_error);
+    }
 }
