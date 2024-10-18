@@ -2,16 +2,17 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-#include <typeinfo>
-#include <sstream>
-#include <iomanip>
-#include <filesystem>
+#include "tt_simulation_host.hpp"
+
 #include <cassert>
 #include <cstdlib>
+#include <filesystem>
+#include <iomanip>
+#include <sstream>
+#include <typeinfo>
 
-#include "common/logger.hpp"
 #include "common/assert.hpp"
-#include "tt_simulation_host.hpp"
+#include "common/logger.hpp"
 
 tt_SimulationHost::tt_SimulationHost() {
     // Get current date time string
@@ -57,7 +58,7 @@ void tt_SimulationHost::start_host() {
 void tt_SimulationHost::send_to_device(uint8_t *buf, size_t buf_size) {
     int rv;
     log_debug(tt::LogEmulationDriver, "Sending messsage to remote..");
-    
+
     void *msg = nng_alloc(buf_size);
     std::memcpy(msg, buf, buf_size);
 

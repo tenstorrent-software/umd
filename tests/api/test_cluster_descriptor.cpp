@@ -2,28 +2,25 @@
 #include <gtest/gtest.h>
 
 #include <string>
-#include <vector>
 #include <unordered_map>
-
-#include "tests/test_utils/generate_cluster_desc.hpp"
+#include <vector>
 
 #include "device/pcie/pci_device.hpp"
 #include "device/tt_cluster_descriptor.h"
+#include "tests/test_utils/generate_cluster_desc.hpp"
 
 // TODO: Needed for detect_arch, remove when it is part of cluster descriptor.
 #include "device/tt_device.h"
 
-
 std::unique_ptr<tt_ClusterDescriptor> get_cluster_desc() {
-
     std::vector<int> pci_device_ids = PCIDevice::enumerate_devices();
-    std::set<int> pci_device_ids_set (pci_device_ids.begin(), pci_device_ids.end());
+    std::set<int> pci_device_ids_set(pci_device_ids.begin(), pci_device_ids.end());
 
     // TODO: This test requires knowledge of the device architecture, which should not be true.
     tt::ARCH device_arch = tt::ARCH::GRAYSKULL;
     if (!pci_device_ids.empty()) {
         int physical_device_id = pci_device_ids[0];
-        PCIDevice pci_device (physical_device_id, 0);
+        PCIDevice pci_device(physical_device_id, 0);
         device_arch = pci_device.get_arch();
     }
 
@@ -66,7 +63,6 @@ TEST(ApiTest, DetectArch) {
 }
 
 TEST(ApiClusterDescriptorTest, BasicFunctionality) {
-
     std::unique_ptr<tt_ClusterDescriptor> cluster_desc = get_cluster_desc();
 
     if (cluster_desc == nullptr) {
@@ -78,7 +74,7 @@ TEST(ApiClusterDescriptorTest, BasicFunctionality) {
     std::unordered_map<chip_id_t, eth_coord_t> eth_chip_coords = cluster_desc->get_chip_locations();
     std::unordered_map<chip_id_t, chip_id_t> local_chips_to_pci_device_id = cluster_desc->get_chips_with_mmio();
     std::unordered_set<chip_id_t> local_chips;
-    for (auto [chip, _]: local_chips_to_pci_device_id) {
+    for (auto [chip, _] : local_chips_to_pci_device_id) {
         local_chips.insert(chip);
     }
     std::unordered_set<chip_id_t> remote_chips;
@@ -91,38 +87,34 @@ TEST(ApiClusterDescriptorTest, BasicFunctionality) {
 
 // A standard disjoint set data structure to track connected components.
 class DisjointSet {
-    public:
-        void add_item(int item) {
-            parent[item] = item;
-        }
+public:
+    void add_item(int item) { parent[item] = item; }
 
-        int get_parent(int item) {
-            while (parent[item] != item) {
-                item = parent[item];
-            }
-            return item;
+    int get_parent(int item) {
+        while (parent[item] != item) {
+            item = parent[item];
         }
+        return item;
+    }
 
-        void merge(int item1, int item2) {
-            int parent1 = get_parent(item1);
-            int parent2 = get_parent(item2);
-            parent[parent1] = parent2;
+    void merge(int item1, int item2) {
+        int parent1 = get_parent(item1);
+        int parent2 = get_parent(item2);
+        parent[parent1] = parent2;
+    }
+
+    bool are_same_set(int item1, int item2) { return get_parent(item1) == get_parent(item2); }
+
+    int get_num_sets() {
+        std::unordered_set<int> sets;
+        for (auto [item, _] : parent) {
+            sets.insert(get_parent(item));
         }
+        return sets.size();
+    }
 
-        bool are_same_set(int item1, int item2) {
-            return get_parent(item1) == get_parent(item2);
-        }
-
-        int get_num_sets() {
-            std::unordered_set<int> sets;
-            for (auto [item, _]: parent) {
-                sets.insert(get_parent(item));
-            }
-            return sets.size();
-        }
-
-    private:
-        std::unordered_map<int, int> parent;
+private:
+    std::unordered_map<int, int> parent;
 };
 
 // This tests fails on a machine with multiple cards.
@@ -142,9 +134,9 @@ TEST(ApiClusterDescriptorTest, SeparateClusters) {
     }
 
     // Merge into clusters of chips.
-    for (auto connection: cluster_desc->get_ethernet_connections()) {
+    for (auto connection : cluster_desc->get_ethernet_connections()) {
         chip_id_t chip = connection.first;
-        for (auto [channel, remote_chip_and_channel]: connection.second) {
+        for (auto [channel, remote_chip_and_channel] : connection.second) {
             chip_id_t remote_chip = std::get<0>(remote_chip_and_channel);
             chip_clusters.merge(chip, remote_chip);
         }

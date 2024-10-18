@@ -5,14 +5,13 @@
 #pragma once
 
 #include <gtest/gtest.h>
-
-#include "tt_simulation_device.h"
-#include "common/logger.hpp"
-
 #include <nng/nng.h>
+#include <nng/protocol/pair1/pair.h>
 #include <nng/protocol/pipeline0/pull.h>
 #include <nng/protocol/pipeline0/push.h>
-#include <nng/protocol/pair1/pair.h>
+
+#include "common/logger.hpp"
+#include "tt_simulation_device.h"
 
 class SimulationDeviceFixture : public ::testing::Test {
 protected:
@@ -22,9 +21,7 @@ protected:
         device->start_device(default_params);
     }
 
-    static void TearDownTestSuite() {
-        device->close_device();
-    }
+    static void TearDownTestSuite() { device->close_device(); }
 
     static std::unique_ptr<tt_SimulationDevice> device;
 };

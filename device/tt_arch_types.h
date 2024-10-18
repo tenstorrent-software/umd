@@ -24,4 +24,4 @@ enum class ARCH {
     BLACKHOLE = static_cast<int>(tt::umd::architecture::blackhole),
     Invalid = static_cast<int>(tt::umd::architecture::invalid),
 };
-}
+}  // namespace tt

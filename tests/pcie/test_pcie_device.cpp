@@ -1,6 +1,5 @@
 
 #include <gtest/gtest.h>
-#include "fmt/xchar.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -8,7 +7,7 @@
 #include <vector>
 
 #include "device/pcie/pci_device.hpp"
-
+#include "fmt/xchar.h"
 
 TEST(PcieDeviceTest, Numa) {
     std::vector<int> nodes;

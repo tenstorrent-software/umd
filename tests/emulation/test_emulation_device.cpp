@@ -1,7 +1,7 @@
-#include "gtest/gtest.h"
-#include "device/tt_soc_descriptor.h"
 #include "device/tt_device.h"
 #include "device/tt_emulation_device.h"
+#include "device/tt_soc_descriptor.h"
+#include "gtest/gtest.h"
 
 // DEPRECATED TEST SUITE !!!
 
@@ -17,7 +17,7 @@ TEST(EmulationDeviceGS, BasicEmuTest) {
     uint64_t l1_addr = 0x1000;
     std::vector<uint32_t> wdata(size);
     std::vector<uint32_t> rdata(size);
-    
+
     try {
         device.start_device(default_params);
 
@@ -26,13 +26,23 @@ TEST(EmulationDeviceGS, BasicEmuTest) {
         }
         device.write_to_device(wdata.data(), wdata.size() * sizeof(std::uint32_t), tt_cxy_pair(0, core), l1_addr, "l1");
         test_utils::read_data_from_device(device, rdata, tt_cxy_pair(0, core), l1_addr, size, "l1");
-        ASSERT_EQ(wdata, rdata) << "Vector read back from core " << core.x << "-" << core.y << "does not match what was written";
+        ASSERT_EQ(wdata, rdata) << "Vector read back from core " << core.x << "-" << core.y
+                                << "does not match what was written";
 
         device.deassert_risc_reset();
-        device.write_to_device(wdata.data(), wdata.size() * sizeof(std::uint32_t), tt_cxy_pair(0, tt_xy_pair(phys_x, phys_y)), l1_addr, "l1");
+        device.write_to_device(
+            wdata.data(),
+            wdata.size() * sizeof(std::uint32_t),
+            tt_cxy_pair(0, tt_xy_pair(phys_x, phys_y)),
+            l1_addr,
+            "l1");
         device.assert_risc_reset();
-        device.write_to_device(wdata.data(), wdata.size() * sizeof(std::uint32_t), tt_cxy_pair(0, tt_xy_pair(phys_x, phys_y)), l1_addr, "l1");
-
+        device.write_to_device(
+            wdata.data(),
+            wdata.size() * sizeof(std::uint32_t),
+            tt_cxy_pair(0, tt_xy_pair(phys_x, phys_y)),
+            l1_addr,
+            "l1");
 
     } catch (const std::exception &e) {
         std::cout << "Error: " << e.what() << std::endl;
