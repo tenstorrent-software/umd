@@ -35,7 +35,6 @@ using Cluster = tt_SiliconDevice;
 
 // TODO: This function should not exist, the API itself should be simple enough.
 inline std::unique_ptr<Cluster> get_cluster() {
-    // TODO: Don't pass each of these arguments.
     return std::unique_ptr<Cluster>(
         new Cluster());
 }

@@ -79,12 +79,13 @@ std::set<chip_id_t> get_target_devices() {
 }
 
 TEST(SiliconDriverBH, CreateDestroy) {
-    std::set<chip_id_t> target_devices = get_target_devices();
+    // std::set<chip_id_t> target_devices = get_target_devices();
     uint32_t num_host_mem_ch_per_mmio_device = 1;
     tt_device_params default_params;
     // Initialize the driver with a 1x1 descriptor and explictly do not perform harvesting
     for(int i = 0; i < 50; i++) {
-        tt_SiliconDevice device = tt_SiliconDevice(test_utils::GetAbsPath("tests/soc_descs/blackhole_140_arch_no_eth.yaml"), test_utils::GetAbsPath("blackhole_1chip_cluster.yaml"), target_devices, num_host_mem_ch_per_mmio_device, false, true, false);
+        // tt_SiliconDevice device = tt_SiliconDevice(test_utils::GetAbsPath("tests/soc_descs/blackhole_140_arch_no_eth.yaml"), test_utils::GetAbsPath("blackhole_1chip_cluster.yaml"), target_devices, num_host_mem_ch_per_mmio_device, false, true, false);
+        tt_SiliconDevice device = tt_SiliconDevice(num_host_mem_ch_per_mmio_device, false, true, false);
         set_params_for_remote_txn(device);
         device.start_device(default_params);
         device.deassert_risc_reset();
@@ -217,7 +218,8 @@ TEST(SiliconDriverBH, UnalignedStaticTLB_RW) {
 
     uint32_t num_host_mem_ch_per_mmio_device = 1;
     
-    tt_SiliconDevice device = tt_SiliconDevice(test_utils::GetAbsPath("tests/soc_descs/blackhole_140_arch_no_eth.yaml"), test_utils::GetAbsPath("blackhole_1chip_cluster.yaml"), target_devices, num_host_mem_ch_per_mmio_device, false, true, true);
+    // tt_SiliconDevice device = tt_SiliconDevice(test_utils::GetAbsPath("tests/soc_descs/blackhole_140_arch_no_eth.yaml"), test_utils::GetAbsPath("blackhole_1chip_cluster.yaml"), target_devices, num_host_mem_ch_per_mmio_device, false, true, true);
+    tt_SiliconDevice device = tt_SiliconDevice(num_host_mem_ch_per_mmio_device, false, true, true);
     set_params_for_remote_txn(device);
     auto mmio_devices = device.get_target_mmio_device_ids();
 
@@ -276,7 +278,9 @@ TEST(SiliconDriverBH, StaticTLB_RW) {
 
     uint32_t num_host_mem_ch_per_mmio_device = 1;
     
-    tt_SiliconDevice device = tt_SiliconDevice(test_utils::GetAbsPath("tests/soc_descs/blackhole_140_arch_no_eth.yaml"), test_utils::GetAbsPath("blackhole_1chip_cluster.yaml"), target_devices, num_host_mem_ch_per_mmio_device, false, true, true);
+    // tt_SiliconDevice device = tt_SiliconDevice(test_utils::GetAbsPath("tests/soc_descs/blackhole_140_arch_no_eth.yaml"), test_utils::GetAbsPath("blackhole_1chip_cluster.yaml"), target_devices, num_host_mem_ch_per_mmio_device, false, true, true);
+    tt_SiliconDevice device = tt_SiliconDevice(num_host_mem_ch_per_mmio_device, false, true, true);
+
     set_params_for_remote_txn(device);
     auto mmio_devices = device.get_target_mmio_device_ids();
 
@@ -326,7 +330,8 @@ TEST(SiliconDriverBH, DynamicTLB_RW) {
     std::set<chip_id_t> target_devices = get_target_devices();
 
     uint32_t num_host_mem_ch_per_mmio_device = 1;
-    tt_SiliconDevice device = tt_SiliconDevice(test_utils::GetAbsPath("tests/soc_descs/blackhole_140_arch_no_eth.yaml"), test_utils::GetAbsPath("blackhole_1chip_cluster.yaml"), target_devices, num_host_mem_ch_per_mmio_device, false, true, true);
+    // tt_SiliconDevice device = tt_SiliconDevice(test_utils::GetAbsPath("tests/soc_descs/blackhole_140_arch_no_eth.yaml"), test_utils::GetAbsPath("blackhole_1chip_cluster.yaml"), target_devices, num_host_mem_ch_per_mmio_device, false, true, true);
+    tt_SiliconDevice device = tt_SiliconDevice(num_host_mem_ch_per_mmio_device, false, true, true);
 
     set_params_for_remote_txn(device);
 
@@ -390,7 +395,8 @@ TEST(SiliconDriverBH, MultiThreadedDevice) {
     std::set<chip_id_t> target_devices = get_target_devices();
 
     uint32_t num_host_mem_ch_per_mmio_device = 1;
-    tt_SiliconDevice device = tt_SiliconDevice(test_utils::GetAbsPath("tests/soc_descs/blackhole_140_arch_no_eth.yaml"), test_utils::GetAbsPath("blackhole_1chip_cluster.yaml"), target_devices, num_host_mem_ch_per_mmio_device, false, true, true);
+    // tt_SiliconDevice device = tt_SiliconDevice(test_utils::GetAbsPath("tests/soc_descs/blackhole_140_arch_no_eth.yaml"), test_utils::GetAbsPath("blackhole_1chip_cluster.yaml"), target_devices, num_host_mem_ch_per_mmio_device, false, true, true);
+    tt_SiliconDevice device = tt_SiliconDevice(num_host_mem_ch_per_mmio_device, false, true, true);
     
     set_params_for_remote_txn(device);
 
@@ -449,7 +455,10 @@ TEST(SiliconDriverBH, MultiThreadedMemBar) {
     uint32_t base_addr = l1_mem::address_map::DATA_BUFFER_SPACE_BASE;
     uint32_t num_host_mem_ch_per_mmio_device = 1;
 
-    tt_SiliconDevice device = tt_SiliconDevice(test_utils::GetAbsPath("tests/soc_descs/blackhole_140_arch_no_eth.yaml"), test_utils::GetAbsPath("blackhole_1chip_cluster.yaml"), target_devices, num_host_mem_ch_per_mmio_device, false, true, true);
+    // tt_SiliconDevice device = tt_SiliconDevice(test_utils::GetAbsPath("tests/soc_descs/blackhole_140_arch_no_eth.yaml"), test_utils::GetAbsPath("blackhole_1chip_cluster.yaml"), target_devices, num_host_mem_ch_per_mmio_device, false, true, true);
+    tt_SiliconDevice device = tt_SiliconDevice(num_host_mem_ch_per_mmio_device, false, true, true);
+    
+    
     set_params_for_remote_txn(device);
     for(int i = 0; i < target_devices.size(); i++) {
         // Iterate over devices and only setup static TLBs for functional worker cores
@@ -551,7 +560,9 @@ TEST(SiliconDriverBH, DISABLED_BroadcastWrite) { // Cannot broadcast to tensix/e
 
     uint32_t num_host_mem_ch_per_mmio_device = 1;
     
-    tt_SiliconDevice device = tt_SiliconDevice(test_utils::GetAbsPath("tests/soc_descs/blackhole_140_arch_no_eth.yaml"), test_utils::GetAbsPath("blackhole_1chip_cluster.yaml"), target_devices, num_host_mem_ch_per_mmio_device, false, true, true);
+    // tt_SiliconDevice device = tt_SiliconDevice(test_utils::GetAbsPath("tests/soc_descs/blackhole_140_arch_no_eth.yaml"), test_utils::GetAbsPath("blackhole_1chip_cluster.yaml"), target_devices, num_host_mem_ch_per_mmio_device, false, true, true);
+    tt_SiliconDevice device = tt_SiliconDevice(num_host_mem_ch_per_mmio_device, false, true, true);
+    
     set_params_for_remote_txn(device);
     auto mmio_devices = device.get_target_mmio_device_ids();
 
@@ -608,7 +619,9 @@ TEST(SiliconDriverBH, DISABLED_VirtualCoordinateBroadcast) { // same problem as 
 
     uint32_t num_host_mem_ch_per_mmio_device = 1;
     
-    tt_SiliconDevice device = tt_SiliconDevice(test_utils::GetAbsPath("tests/soc_descs/blackhole_140_arch_no_eth.yaml"), test_utils::GetAbsPath("blackhole_1chip_cluster.yaml"), target_devices, num_host_mem_ch_per_mmio_device, false, true, true);
+    // tt_SiliconDevice device = tt_SiliconDevice(test_utils::GetAbsPath("tests/soc_descs/blackhole_140_arch_no_eth.yaml"), test_utils::GetAbsPath("blackhole_1chip_cluster.yaml"), target_devices, num_host_mem_ch_per_mmio_device, false, true, true);
+    tt_SiliconDevice device = tt_SiliconDevice(num_host_mem_ch_per_mmio_device, false, true, true);
+    
     set_params_for_remote_txn(device);
     auto mmio_devices = device.get_target_mmio_device_ids();
 

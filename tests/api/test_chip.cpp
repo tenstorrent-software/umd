@@ -22,7 +22,6 @@
 using Cluster = tt_SiliconDevice;
 
 inline std::unique_ptr<Cluster> get_cluster() {
-    // TODO: Don't pass each of these arguments.
     return std::unique_ptr<Cluster>(new Cluster());
 }
 
