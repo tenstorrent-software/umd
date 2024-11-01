@@ -20,6 +20,7 @@
 #include "device/tt_arch_types.h"
 
 #include "device/coordinate_manager.h"
+#include "device/tt_core_coordinates.h"
 
 #include "fmt/core.h"
 
@@ -65,19 +66,6 @@ static inline tt::ARCH get_arch_name(const std::string &arch_str){
 std::string format_node(tt_xy_pair xy);
 
 tt_xy_pair format_node(std::string str);
-
-//! SocCore type enumerations
-/*! Superset for all chip generations */
-enum class CoreType {
-  ARC,
-  DRAM,
-  ETH,
-  PCIE,
-  WORKER,
-  HARVESTED,
-  ROUTER_ONLY,
-
-};
 
 //! SocNodeDescriptor contains information regarding the Node/Core
 /*!

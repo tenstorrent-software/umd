@@ -12,6 +12,7 @@
 
 #include "device/tt_xy_pair.h"
 #include "device/tt_arch_types.h"
+#include "tt_core_coordinates.h"
 
 class CoordinateManager {
 
@@ -45,7 +46,16 @@ public:
 
     CoordinateManager(CoordinateManager& other) = default;
 
-    virtual ~CoordinateManager() {}
+    // v1 functions
+    // We need only one function per coordinate system for all core types.
+    virtual CoreCoord_V1 to_physical(const CoreCoord_V1 core_coords);
+
+    // v2 functions
+    // We need as many functions as there are core types for each coordinate system.
+    virtual TensixCoreCoord_V2 to_physical(const TensixCoreCoord_V2 tensix_coords);
+    virtual DramCoreCoord_V2 to_physical(const DramCoreCoord_V2 dram_coords);
+
+    virtual ~CoordinateManager() = default;
 
 protected:
     virtual void clear_harvesting_structures();
@@ -57,6 +67,10 @@ protected:
         const std::set<size_t>& x_to_harvest, const std::set<size_t>& y_to_harvest,
         const std::set<size_t>& physical_x_unharvested, const std::set<size_t>& physical_y_unharvested);
     virtual void fill_logical_to_virtual_mapping(const std::set<size_t>& physical_x_unharvested, const std::set<size_t>& physical_y_unharvested);
+    
+    // Helper functions for V1.
+    virtual CoreCoord_V1 to_tensix_physical(const CoreCoord_V1 core_coords);
+    virtual CoreCoord_V1 to_dram_physical(const CoreCoord_V1 core_coords);
 
     std::map<std::size_t, std::size_t> physical_y_to_logical_y;
     std::map<std::size_t, std::size_t> physical_x_to_logical_x;

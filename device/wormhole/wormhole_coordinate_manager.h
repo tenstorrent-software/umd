@@ -18,8 +18,18 @@ public:
 
     tt_logical_coords to_logical_coords(tt_translated_coords translated_coords) override;
 
+    // v1 functions
+    CoreCoord_V1 to_physical(CoreCoord_V1 core_coords) override;
+
+    // v2 functions
+    TensixCoreCoord_V2 to_physical(TensixCoreCoord_V2 tensix_coords) override;
+    DramCoreCoord_V2 to_physical(DramCoreCoord_V2 dram_coords) override;
+
 protected: 
     std::set<std::size_t> get_y_coordinates_to_harvest(std::size_t harvesting_mask) override;
+
+    CoreCoord_V1 to_tensix_physical(const CoreCoord_V1 core_coords) override;
+    CoreCoord_V1 to_dram_physical(const CoreCoord_V1 core_coords) override;
 
 private:
     static const std::size_t translated_coordinate_start_x = 18;

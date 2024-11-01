@@ -13,12 +13,14 @@
 #include <vector>
 #include <set>
 
+#include "tt_core_coordinates.h"
 #include "tt_soc_descriptor.h"
 #include "tt_xy_pair.h"
 #include "tt_silicon_driver_common.hpp"
 #include "device/tt_cluster_descriptor_types.h"
 #include "device/tlb.h"
 #include "device/tt_io.hpp"
+#include "device/tt_core_coordinates.h"
 
 #include "pcie/pci_device.hpp"
 #include "fmt/core.h"
@@ -606,7 +608,7 @@ namespace tt::umd {
 */ 
 class Cluster: public tt_device
 {
-    public:
+public:
     // Constructor
     /**
      * Silicon Driver constructor.
@@ -707,10 +709,14 @@ class Cluster: public tt_device
     // TODO: This should be accessible through public API, probably to be moved to tt_device.
     PCIDevice *get_pci_device(int device_id) const;
 
+    // Core coordinates functions
+    virtual void write_to_device(const void *mem_ptr, uint32_t size_in_bytes, chip_id_t chip, CoreCoord_V1 core_coord, uint64_t addr);
+    virtual void read_from_device(void* mem_ptr, uint32_t size_in_bytes, chip_id_t chip, CoreCoord_V1 core_coord, uint64_t addr);
+
     // Destructor
     virtual ~Cluster ();
 
-    private:
+private:
     // Helper functions
     // Startup + teardown
     void create_device(const std::unordered_set<chip_id_t> &target_mmio_device_ids, const uint32_t &num_host_mem_ch_per_mmio_device, const bool skip_driver_allocs, const bool clean_system_resources);
