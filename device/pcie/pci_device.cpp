@@ -459,7 +459,10 @@ void PCIDevice::write_block(uint64_t byte_addr, uint64_t num_bytes, const uint8_
 
     const void *src = reinterpret_cast<const void *>(buffer_addr);
     if (arch == tt::ARCH::WORMHOLE_B0) {
+        auto now = std::chrono::high_resolution_clock::now();
         memcpy_to_device(dest, src, num_bytes);
+        auto elapsed = std::chrono::high_resolution_clock::now() - now;
+        std::cout << "Write took " << std::chrono::duration_cast<std::chrono::nanoseconds>(elapsed).count() << "ns" << std::endl;
     } else {
         memcpy(dest, src, num_bytes);
     }
@@ -476,7 +479,10 @@ void PCIDevice::read_block(uint64_t byte_addr, uint64_t num_bytes, uint8_t* buff
 
     void *dest = reinterpret_cast<void *>(buffer_addr);
     if (arch == tt::ARCH::WORMHOLE_B0) {
+        auto now = std::chrono::high_resolution_clock::now();
         memcpy_from_device(dest, src, num_bytes);
+        auto elapsed = std::chrono::high_resolution_clock::now() - now;
+        std::cout << "Read took " << std::chrono::duration_cast<std::chrono::nanoseconds>(elapsed).count() << "ns" << std::endl;
     } else {
         memcpy(dest, src, num_bytes);
     }

@@ -723,3 +723,41 @@ TEST(SiliconDriverWH, SysmemTestWithPcie) {
     // Step 6: Verify that sysmem matches buffer.
     ASSERT_EQ(buffer, std::vector<uint8_t>(sysmem, sysmem + test_size_bytes));
 }
+
+TEST(SiliconDriverWH, ReadWriteTimes) {
+    auto target_devices = get_target_devices();
+    tt_SiliconDevice device(test_utils::GetAbsPath("tests/soc_descs/wormhole_b0_8x10.yaml"),
+                            test_utils::GetClusterDescYAML(),
+                            target_devices,
+                            1,  // one "host memory channel", currently a 1G huge page
+                            false, // skip driver allocs - no (don't skip)
+                            true,  // clean system resources - yes
+                            true); // perform harvesting - yes
+    set_params_for_remote_txn(device);
+    device.start_device(tt_device_params{});  // no special parameters
+    device.deassert_risc_reset();
+
+    std::vector<uint8_t> input(0x4, 0x0);
+    std::vector<uint8_t> output(0x4, 0x0);
+
+    fill_with_random_bytes(input.data(), input.size());
+
+    uint32_t address = l1_mem::address_map::NCRISC_FIRMWARE_BASE;
+
+    for (const auto& core : device.get_virtual_soc_descriptors().at(0).workers) {
+        const auto dst = tt_cxy_pair(0, core);
+
+        std::cout << "(" << core.x << "," << core.y << "): ";
+
+        const auto before_write = std::chrono::high_resolution_clock::now();
+        device.write_to_device(input.data(), input.size(), dst, address, "SMALL_READ_WRITE_TLB");
+        const auto after_write = std::chrono::high_resolution_clock::now();
+        device.read_from_device(output.data(), dst, address, output.size(), "LARGE_READ_TLB");
+        const auto after_read = std::chrono::high_resolution_clock::now();
+
+        ASSERT_EQ(input, output) << "What I wrote doesn't match what I read back";
+
+        // std::cerr << "Write time: " << std::chrono::duration_cast<std::chrono::nanoseconds>(after_write - before_write).count() << " ns" << std::endl;
+        // std::cerr << "Read time: " << std::chrono::duration_cast<std::chrono::nanoseconds>(after_read - after_write).count() << " ns" << std::endl;
+    }
+}
