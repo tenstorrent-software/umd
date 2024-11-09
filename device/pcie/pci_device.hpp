@@ -22,7 +22,7 @@
 // See /vendor_ip/synopsys/052021/bh_pcie_ctl_gen5/export/configuration/DWC_pcie_ctl.h
 static const uint64_t UNROLL_ATU_OFFSET_BAR = 0x1200;
 
-// TODO: this is a bit of a hack... something to revisit when we formalize an 
+// TODO: this is a bit of a hack... something to revisit when we formalize an
 // abstraction for IO.
 // BAR0 size for Blackhole, used to determine whether write block should use BAR0 or BAR4
 static const uint64_t BAR0_BH_SIZE = 512 * 1024 * 1024;
@@ -83,7 +83,7 @@ public:
      *
      * Opens the character device file descriptor, reads device information from
      * sysfs, and maps device memory region(s) into the process address space.
-     * 
+     *
      * @param pci_device_number     N in /dev/tenstorrent/N
      * @param logical_device_id     unique identifier for this device in the network topology
      */
@@ -176,6 +176,8 @@ public:
     bool init_hugepage(uint32_t num_host_mem_channels);
     int get_num_host_mem_channels() const;
     hugepage_mapping get_hugepage_mapping(int channel) const;
+
+    void* allocate_dma_buffer(size_t size, uint64_t& dma_addr);
 
 public:
     // TODO: we can and should make all of these private.

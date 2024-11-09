@@ -46,6 +46,85 @@ const uint32_t HUGEPAGE_REGION_SIZE = 1 << 30; // 1GB
 using namespace tt;
 using namespace tt::umd;
 
+typedef struct {
+    uint32_t  chip_addr;
+    uint32_t  host_phys_addr;
+    uint32_t  completion_flag_phys_addr;
+    uint32_t  size_bytes                  : 28;
+    uint32_t  write                       : 1;
+    uint32_t  pcie_msi_on_done            : 1;
+    uint32_t  pcie_write_on_done          : 1;
+    uint32_t  trigger                     : 1;
+    uint32_t  repeat;
+} arc_pcie_ctrl_dma_request_t; // 5 * 4 = 20B
+
+void pcie_dma_transfer_turbo(PCIDevice *dev, uint32_t chip_addr, uint32_t size_bytes, bool write, void *dst) {
+    static bool once = false;
+    static uint64_t completion_phys_addr = 0;
+    static uint64_t host_phys_addr = 0;
+    static void* buffer_addr = nullptr;
+
+    if (!once) {
+        std::cout << "doing allocation" << std::endl;
+        uint64_t dma_addr;
+        buffer_addr = dev->allocate_dma_buffer(size_bytes + 0x1000, dma_addr);
+        once = true;
+
+        completion_phys_addr = dma_addr + size_bytes;
+        host_phys_addr = dma_addr;
+        std::cout << std::hex;
+        std::cout << "completion_phys_addr: 0x" << completion_phys_addr << std::endl;
+        std::cout << "host_phys_addr: 0x" << host_phys_addr << std::endl;
+        std::cout << std::dec;
+
+    }
+
+    uint8_t *complete_flag8 = (uint8_t *)buffer_addr + size_bytes;
+
+    arc_pcie_ctrl_dma_request_t req = {
+        .chip_addr           = chip_addr,
+        .host_phys_addr      = (uint32_t)host_phys_addr,
+        .completion_flag_phys_addr = (uint32_t)completion_phys_addr,
+        .size_bytes          = size_bytes,
+        .write               = (write ? 1U : 0U),
+        .pcie_msi_on_done    = 0,
+        .pcie_write_on_done  = 1,
+        .trigger             = 1U,
+        .repeat              = 1
+    };
+
+    volatile uint32_t *complete_flag = (volatile uint32_t *)complete_flag8;
+    *complete_flag = 0;
+
+    uint64_t c_CSM_PCIE_CTRL_DMA_REQUEST_OFFSET = 0x1fef84c8;
+    uint64_t c_ARC_MISC_CNTL_ADDRESS = 0x1ff30100;            // chip.AXI.get_path_info("ARC_RESET.ARC_MISC_CNTL")
+
+    // write_regs (dev, c_CSM_PCIE_CTRL_DMA_REQUEST_OFFSET, sizeof(req) / sizeof(uint32_t), &req);
+    dev->write_regs(c_CSM_PCIE_CTRL_DMA_REQUEST_OFFSET, sizeof(req) / sizeof(uint32_t), &req);
+
+    // Trigger ARC interrupt 0 on core 0
+    int arc_misc_cntl_value = 0;
+
+    // NOTE: Ideally, we should read the state of this register before writing to it, but that
+    //       casues a lot of delay (reads have huge latencies)
+    arc_misc_cntl_value |= (1 << 16); // Cause IRQ0 on core 0
+    // write_regs (dev, c_ARC_MISC_CNTL_ADDRESS, 1, &arc_misc_cntl_value);
+    dev->write_regs(c_ARC_MISC_CNTL_ADDRESS, 1, &arc_misc_cntl_value);
+
+    {
+        // t.now_in ("2. DMA poll");
+        int wait_loops = 0;
+        while (true) {
+            // The complete flag is set ty by ARC (see src/hardware/soc/tb/arc_fw/lib/pcie_dma.c)
+            if (*complete_flag == 0xfaca) break;
+            wait_loops++;
+        }
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    memcpy(dst, buffer_addr, size_bytes);
+}
+
+
 template <typename T>
 static T read_sysfs(const PciDeviceInfo &device_info, const std::string &attribute_name) {
     const auto sysfs_path = fmt::format("/sys/bus/pci/devices/{:04x}:{:02x}:{:02x}.{:x}/{}",
@@ -476,7 +555,11 @@ void PCIDevice::read_block(uint64_t byte_addr, uint64_t num_bytes, uint8_t* buff
     }
 
     void *dest = reinterpret_cast<void *>(buffer_addr);
-    if (arch == tt::ARCH::WORMHOLE_B0) {
+    if (true) {
+        // Ugh
+        pcie_dma_transfer_turbo(this, byte_addr, num_bytes, 0, dest);
+    }
+    else if (arch == tt::ARCH::WORMHOLE_B0) {
         memcpy_from_device(dest, src, num_bytes);
     } else {
         memcpy(dest, src, num_bytes);
@@ -689,6 +772,23 @@ hugepage_mapping PCIDevice::get_hugepage_mapping(int channel) const {
     } else {
         return hugepage_mapping_per_channel[channel];
     }
+}
+
+void* PCIDevice::allocate_dma_buffer(size_t size, uint64_t& dma_addr) {
+    tenstorrent_allocate_dma_buf allocate_dma_buf{};
+    allocate_dma_buf.in.requested_size = size;
+    allocate_dma_buf.in.buf_index = 0;
+
+    if (ioctl(pci_device_file_desc, TENSTORRENT_IOCTL_ALLOCATE_DMA_BUF, &allocate_dma_buf) == -1) {
+        throw std::runtime_error(fmt::format("Failed to allocate DMA buffer: {}", strerror(errno)));
+    }
+
+    void* mapping = mmap(NULL, allocate_dma_buf.out.size, PROT_READ | PROT_WRITE, MAP_SHARED, pci_device_file_desc, allocate_dma_buf.out.mapping_offset);
+    if (mapping == MAP_FAILED) {
+        throw std::runtime_error(fmt::format("Failed to map DMA buffer: {}", strerror(errno)));
+    }
+    dma_addr = allocate_dma_buf.out.physical_address;
+    return mapping;
 }
 
 void PCIDevice::print_file_contents(std::string filename, std::string hint){
