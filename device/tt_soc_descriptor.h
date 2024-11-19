@@ -156,24 +156,11 @@ public:
         coordinate_manager.reset(new CoordinateManager(*other.coordinate_manager));
     }
     
-    // Coordinate conversions.
-
-    // Conversions from logical coordinates should be used just for worker cores.
-    tt_physical_coords to_physical_coords(tt_logical_coords logical_coords);
-    tt_virtual_coords to_virtual_coords(tt_logical_coords logical_coords);
-    tt_translated_coords to_translated_coords(tt_logical_coords logical_coords);
-
-    tt_logical_coords to_logical_coords(tt_physical_coords physical_coords);
-    tt_virtual_coords to_virtual_coords(tt_physical_coords physical_coords);
-    tt_translated_coords to_translated_coords(tt_physical_coords physical_coords);
-
-    tt_logical_coords to_logical_coords(tt_virtual_coords virtual_coords);
-    tt_physical_coords to_physical_coords(tt_virtual_coords virtual_coords);
-    tt_translated_coords to_translated_coords(tt_virtual_coords virtual_coords);
-
-    tt_logical_coords to_logical_coords(tt_translated_coords translated_coords);
-    tt_physical_coords to_physical_coords(tt_translated_coords translated_coords);
-    tt_virtual_coords to_virtual_coords(tt_translated_coords translated_coords);
+    // CoreCoord conversions.
+    CoreCoord to_physical(const CoreCoord core_coord);
+    CoreCoord to_logical(const CoreCoord core_coord);
+    CoreCoord to_virtual(const CoreCoord core_coord);
+    CoreCoord to_translated(const CoreCoord core_coord);
 
     void perform_harvesting(std::size_t harvesting_mask);
 

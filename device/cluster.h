@@ -710,8 +710,8 @@ public:
     PCIDevice *get_pci_device(int device_id) const;
 
     // Core coordinates functions
-    virtual void write_to_device(const void *mem_ptr, uint32_t size_in_bytes, chip_id_t chip, CoreCoord_V1 core_coord, uint64_t addr);
-    virtual void read_from_device(void* mem_ptr, uint32_t size_in_bytes, chip_id_t chip, CoreCoord_V1 core_coord, uint64_t addr);
+    // virtual void write_to_device(const void *mem_ptr, uint32_t size_in_bytes, chip_id_t chip, CoreCoord core_coord, uint64_t addr);
+    // virtual void read_from_device(void* mem_ptr, uint32_t size_in_bytes, chip_id_t chip, CoreCoord core_coord, uint64_t addr);
 
     // Destructor
     virtual ~Cluster ();

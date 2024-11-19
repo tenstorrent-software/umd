@@ -22,22 +22,6 @@ public:
 
     virtual void perform_harvesting(std::size_t harvesting_mask);
 
-    virtual tt_physical_coords to_physical_coords(tt_logical_coords logical_coords);
-    virtual tt_translated_coords to_translated_coords(tt_logical_coords logical_coords);
-    virtual tt_virtual_coords to_virtual_coords(tt_logical_coords logical_coords);
-
-    virtual tt_logical_coords to_logical_coords(tt_physical_coords physical_coords);
-    virtual tt_virtual_coords to_virtual_coords(tt_physical_coords physical_coords);
-    virtual tt_translated_coords to_translated_coords(tt_physical_coords physical_coords);
-
-    virtual tt_logical_coords to_logical_coords(tt_virtual_coords virtual_coords);
-    virtual tt_physical_coords to_physical_coords(tt_virtual_coords virtual_coords);
-    virtual tt_translated_coords to_translated_coords(tt_virtual_coords virtual_coords);
-
-    virtual tt_logical_coords to_logical_coords(tt_translated_coords translated_coords);
-    virtual tt_physical_coords to_physical_coords(tt_translated_coords translated_coords);
-    virtual tt_virtual_coords to_virtual_coords(tt_translated_coords translated_coords);
-
     static std::unique_ptr<CoordinateManager> get_coordinate_manager(
         tt::ARCH arch,
         const tt_xy_pair& worker_grid_size,
@@ -46,14 +30,10 @@ public:
 
     CoordinateManager(CoordinateManager& other) = default;
 
-    // v1 functions
-    // We need only one function per coordinate system for all core types.
-    virtual CoreCoord_V1 to_physical(const CoreCoord_V1 core_coords);
-
-    // v2 functions
-    // We need as many functions as there are core types for each coordinate system.
-    virtual TensixCoreCoord_V2 to_physical(const TensixCoreCoord_V2 tensix_coords);
-    virtual DramCoreCoord_V2 to_physical(const DramCoreCoord_V2 dram_coords);
+    CoreCoord to_physical(const CoreCoord core_coord);
+    CoreCoord to_logical(const CoreCoord core_coord);
+    CoreCoord to_virtual(const CoreCoord core_coord);
+    CoreCoord to_translated(const CoreCoord core_coord);
 
     virtual ~CoordinateManager() = default;
 
@@ -68,9 +48,15 @@ protected:
         const std::set<size_t>& physical_x_unharvested, const std::set<size_t>& physical_y_unharvested);
     virtual void fill_logical_to_virtual_mapping(const std::set<size_t>& physical_x_unharvested, const std::set<size_t>& physical_y_unharvested);
     
-    // Helper functions for V1.
-    virtual CoreCoord_V1 to_tensix_physical(const CoreCoord_V1 core_coords);
-    virtual CoreCoord_V1 to_dram_physical(const CoreCoord_V1 core_coords);
+    CoreCoord to_tensix_physical(const CoreCoord core_coord);
+    CoreCoord to_tensix_logical(const CoreCoord core_coord);
+    CoreCoord to_tensix_virtual(const CoreCoord core_coord);
+    CoreCoord to_tensix_translated(const CoreCoord core_coord);
+
+    // TODO(pjanevski): this should be abstract functions
+    // Making deep copy of SocDescriptor is harded if these are abstract
+    virtual CoreCoord translated_to_logical_tensix(const CoreCoord core_coord);
+    virtual CoreCoord logical_to_translated_tensix(const CoreCoord core_coord);
 
     std::map<std::size_t, std::size_t> physical_y_to_logical_y;
     std::map<std::size_t, std::size_t> physical_x_to_logical_x;

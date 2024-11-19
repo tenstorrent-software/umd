@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: (c) 2023 Tenstorrent Inc.
+ * SPDX-FileCopyrightText: (c) 2024 Tenstorrent Inc.
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -18,12 +18,12 @@ std::set<std::size_t> BlackholeCoordinateManager::get_x_coordinates_to_harvest(s
     return x_to_harvest;
 }
 
-tt_translated_coords BlackholeCoordinateManager::to_translated_coords(tt_logical_coords logical_coords) {
-    tt_virtual_coords virtual_coords = to_virtual_coords(logical_coords);
-    return tt_translated_coords(virtual_coords.x, virtual_coords.y);
+CoreCoord BlackholeCoordinateManager::translated_to_logical_tensix(const CoreCoord core_coord) {
+    const CoreCoord virtual_coord = CoreCoord(core_coord.x, core_coord.y, CoreType::TENSIX, CoordSystem::VIRTUAL);
+    return CoordinateManager::to_logical(virtual_coord);
 }
 
-tt_logical_coords BlackholeCoordinateManager::to_logical_coords(tt_translated_coords translated_coords) {
-    tt_virtual_coords virtual_coords = tt_virtual_coords(translated_coords.x, translated_coords.y);
-    return CoordinateManager::to_logical_coords(virtual_coords);
+CoreCoord BlackholeCoordinateManager::logical_to_translated_tensix(const CoreCoord core_coord) {
+    const CoreCoord virtual_coord = CoordinateManager::to_virtual(core_coord);
+    return CoreCoord(virtual_coord.x, virtual_coord.y, CoreType::TENSIX, CoordSystem::TRANSLATED);
 }

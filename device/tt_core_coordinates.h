@@ -12,7 +12,6 @@
 /*
  * CoordSystem is an enum class that represents all types of coordinate
  * systems that can be used to represent a core's location.
- * This is used both for V1 and V2.
  */
 enum class CoordSystem {
     LOGICAL,
@@ -21,9 +20,6 @@ enum class CoordSystem {
     TRANSLATED,
 };
 
-// ************************************************************************************************
-// V1
-
 /*
  * CoreType is an enum class that represents all types of cores
  * present on the Tenstorrent chip.
@@ -31,27 +27,22 @@ enum class CoordSystem {
 enum class CoreType {
   ARC,
   DRAM,
-  ETH,
+  ACTIVE_ETH,
+  IDLE_ETH,
   PCIE,
   TENSIX,
   ROUTER_ONLY,
+  // TODO: this keeps compatibility with existing code in SocDescriptor
+  // but it won't be needed later on
+  HARVESTED,
+  ETH,
 };
 
- struct CoreCoord_V1 : public tt_xy_pair {
+ struct CoreCoord : public tt_xy_pair {
+    CoreCoord() {}
+    CoreCoord(const size_t x, const size_t y, const CoreType type, const CoordSystem coord_system)
+        : tt_xy_pair(x, y), core_type(type), coord_system(coord_system) {}
+
     CoreType core_type;
     CoordSystem coord_system;
  };
-
-// ************************************************************************************************
-// V2
-struct CoreCoord_V2 : public tt_xy_pair {
-    CoordSystem coord_system;
-};
-
-struct TensixCoreCoord_V2 : public CoreCoord_V2 {
-
-};
- 
-struct DramCoreCoord_V2 : public CoreCoord_V2 {
-    
-};

@@ -174,52 +174,20 @@ void tt_SocDescriptor::perform_harvesting(std::size_t harvesting_mask) {
     coordinate_manager->perform_harvesting(harvesting_mask);
 }
 
-tt_physical_coords tt_SocDescriptor::to_physical_coords(tt_logical_coords logical_coords) {
-    return coordinate_manager->to_physical_coords(logical_coords);
+CoreCoord tt_SocDescriptor::to_physical(const CoreCoord core_coord) {
+    return coordinate_manager->to_physical(core_coord);
 }
 
-tt_virtual_coords tt_SocDescriptor::to_virtual_coords(tt_logical_coords logical_coords) {
-    return coordinate_manager->to_virtual_coords(logical_coords);
+CoreCoord tt_SocDescriptor::to_logical(const CoreCoord core_coord) {
+    return coordinate_manager->to_logical(core_coord);
 }
 
-tt_translated_coords tt_SocDescriptor::to_translated_coords(tt_logical_coords logical_coords) {
-    return coordinate_manager->to_translated_coords(logical_coords);
+CoreCoord tt_SocDescriptor::to_virtual(const CoreCoord core_coord) {
+    return coordinate_manager->to_virtual(core_coord);
 }
 
-tt_logical_coords tt_SocDescriptor::to_logical_coords(tt_physical_coords physical_coords) {
-    return coordinate_manager->to_logical_coords(physical_coords);
-}
-
-tt_virtual_coords tt_SocDescriptor::to_virtual_coords(tt_physical_coords physical_coords) {
-    return coordinate_manager->to_virtual_coords(physical_coords);
-}
-
-tt_translated_coords tt_SocDescriptor::to_translated_coords(tt_physical_coords physical_coords) {
-    return coordinate_manager->to_translated_coords(physical_coords);
-}
-
-tt_logical_coords tt_SocDescriptor::to_logical_coords(tt_virtual_coords virtual_coords) {
-    return coordinate_manager->to_logical_coords(virtual_coords);
-}
-
-tt_physical_coords tt_SocDescriptor::to_physical_coords(tt_virtual_coords virtual_coords) {
-    return coordinate_manager->to_physical_coords(virtual_coords);
-}
-
-tt_translated_coords tt_SocDescriptor::to_translated_coords(tt_virtual_coords virtual_coords) {
-    return coordinate_manager->to_translated_coords(virtual_coords);
-}
-
-tt_logical_coords tt_SocDescriptor::to_logical_coords(tt_translated_coords translated_coords) {
-    return coordinate_manager->to_logical_coords(translated_coords);
-}
-
-tt_physical_coords tt_SocDescriptor::to_physical_coords(tt_translated_coords translated_coords) {
-    return coordinate_manager->to_physical_coords(translated_coords);
-}
-
-tt_virtual_coords tt_SocDescriptor::to_virtual_coords(tt_translated_coords translated_coords) {
-    return coordinate_manager->to_virtual_coords(translated_coords);
+CoreCoord tt_SocDescriptor::to_translated(const CoreCoord core_coord) {
+    return coordinate_manager->to_translated(core_coord);
 }
 
 tt_SocDescriptor::tt_SocDescriptor(std::string device_descriptor_path, std::size_t harvesting_mask) {

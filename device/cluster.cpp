@@ -2689,17 +2689,4 @@ tt_version Cluster::get_ethernet_fw_version() const {
     return eth_fw_version;
 }
 
-// v1 functions
-void Cluster::write_to_device(const void *mem_ptr, uint32_t size_in_bytes, chip_id_t chip, CoreCoord_V1 core_coord, uint64_t addr, const std::string& tlb_to_use) {
-    CoreCoord_V1 physical_core_coord = coordinate_manager->to_physical(core_coord);
-
-
-}
-
-void Cluster::read_from_device(void* mem_ptr, chip_id_t chip, CoreCoord_V1 core_coord, uint64_t addr, uint32_t size, const std::string& fallback_tlb) {
-    CoreCoord_V1 physical_core_coord = coordinate_manager->to_physical(core_coord);
-
-
-}
-
 }

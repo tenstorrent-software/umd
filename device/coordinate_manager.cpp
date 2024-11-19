@@ -5,59 +5,118 @@
  */
 #include "device/coordinate_manager.h"
 #include <memory>
+#include <stdexcept>
 #include "coordinate_manager.h"
 #include "grayskull/grayskull_coordinate_manager.h"
+#include "tt_core_coordinates.h"
 
-tt_physical_coords CoordinateManager::to_physical_coords(tt_logical_coords logical_coords) {
-    return tt_physical_coords(logical_x_to_physical_x[logical_coords.x], logical_y_to_physical_y[logical_coords.y]);
+CoreCoord CoordinateManager::to_tensix_physical(const CoreCoord core_coord) {
+    switch (core_coord.coord_system) {
+        case CoordSystem::LOGICAL:
+            return CoreCoord{logical_x_to_physical_x[core_coord.x], logical_y_to_physical_y[core_coord.y], CoreType::TENSIX, CoordSystem::PHYSICAL};
+        case CoordSystem::PHYSICAL:
+            return core_coord;
+        case CoordSystem::VIRTUAL:
+            return CoreCoord{logical_x_to_physical_x[virtual_x_to_logical_x[core_coord.x]], logical_y_to_physical_y[virtual_y_to_logical_y[core_coord.y]], CoreType::TENSIX, CoordSystem::PHYSICAL};
+        case CoordSystem::TRANSLATED:
+            return to_tensix_physical(translated_to_logical_tensix(core_coord));
+    }
 }
 
-// TODO(pjanevski): this is different for Wormhole and Blackhole.
-// investigate and implement
-tt_translated_coords CoordinateManager::to_translated_coords(tt_logical_coords logical_coords) {
-    tt_physical_coords physical_coords = to_physical_coords(logical_coords);
-    return tt_translated_coords(physical_coords.x, physical_coords.y);
+CoreCoord CoordinateManager::to_tensix_virtual(const CoreCoord core_coord) {
+    switch (core_coord.coord_system) {
+        case CoordSystem::LOGICAL:
+            return CoreCoord{logical_x_to_virtual_x[core_coord.x], logical_y_to_virtual_y[core_coord.y], CoreType::TENSIX, CoordSystem::VIRTUAL};
+        case CoordSystem::PHYSICAL:
+            return CoreCoord{virtual_x_to_logical_x[core_coord.x], virtual_y_to_logical_y[core_coord.y], CoreType::TENSIX, CoordSystem::VIRTUAL};
+        case CoordSystem::VIRTUAL:
+            return core_coord;
+        case CoordSystem::TRANSLATED:
+            return to_tensix_virtual(to_tensix_logical(core_coord));
+    }
 }
 
-tt_virtual_coords CoordinateManager::to_virtual_coords(tt_logical_coords logical_coords) {
-    return tt_virtual_coords(logical_x_to_virtual_x[logical_coords.x], logical_y_to_virtual_y[logical_coords.y]);
+CoreCoord CoordinateManager::to_tensix_logical(const CoreCoord core_coord) {
+    switch (core_coord.coord_system) {
+        case CoordSystem::LOGICAL:
+            return core_coord;
+        case CoordSystem::PHYSICAL:
+            return CoreCoord{physical_x_to_logical_x[core_coord.x], physical_y_to_logical_y[core_coord.y], CoreType::TENSIX, CoordSystem::LOGICAL};
+        case CoordSystem::VIRTUAL:
+            return CoreCoord{virtual_x_to_logical_x[core_coord.x], virtual_y_to_logical_y[core_coord.y], CoreType::TENSIX, CoordSystem::LOGICAL};
+        case CoordSystem::TRANSLATED:
+            return translated_to_logical_tensix(core_coord);
+    }
 }
 
-tt_logical_coords CoordinateManager::to_logical_coords(tt_physical_coords physical_coords) {
-    return tt_logical_coords(physical_x_to_logical_x[physical_coords.x], physical_y_to_logical_y[physical_coords.y]);
+CoreCoord CoordinateManager::to_tensix_translated(const CoreCoord core_coord) {
+    switch (core_coord.coord_system) {
+        case CoordSystem::LOGICAL:
+            return logical_to_translated_tensix(core_coord);
+        case CoordSystem::PHYSICAL:
+            return to_translated(to_tensix_logical(core_coord));
+        case CoordSystem::VIRTUAL:
+            return to_translated(to_tensix_logical(core_coord));
+        case CoordSystem::TRANSLATED:
+            return core_coord;
+    }
 }
 
-tt_virtual_coords CoordinateManager::to_virtual_coords(tt_physical_coords physical_coords) {
-    return to_virtual_coords(to_logical_coords(physical_coords));
+CoreCoord CoordinateManager::to_physical(const CoreCoord core_coord) {
+    switch (core_coord.core_type) {
+        case CoreType::TENSIX:
+            return to_tensix_physical(core_coord);
+        case CoreType::DRAM:
+        case CoreType::ARC:
+        case CoreType::ACTIVE_ETH:
+        case CoreType::IDLE_ETH:
+        case CoreType::PCIE:
+        case CoreType::ROUTER_ONLY:
+            throw std::runtime_error("Core type is not supported for conversion to physical coordinates");
+    }
+    throw std::runtime_error("Invalid coordinate system");
 }
 
-tt_translated_coords CoordinateManager::to_translated_coords(tt_physical_coords physical_coords) {
-    return to_translated_coords(to_logical_coords(physical_coords));
+CoreCoord CoordinateManager::to_virtual(const CoreCoord core_coord) {
+    switch (core_coord.core_type) {
+        case CoreType::TENSIX:
+            return to_tensix_virtual(core_coord);
+        case CoreType::DRAM:
+        case CoreType::ARC:
+        case CoreType::ACTIVE_ETH:
+        case CoreType::IDLE_ETH:
+        case CoreType::PCIE:
+        case CoreType::ROUTER_ONLY:
+            throw std::runtime_error("Core type is not supported for conversion to virtual coordinates");
+    }
 }
 
-tt_logical_coords CoordinateManager::to_logical_coords(tt_virtual_coords virtual_coords) {
-    return tt_logical_coords(virtual_x_to_logical_x[virtual_coords.x], virtual_y_to_logical_y[virtual_coords.y]);
+CoreCoord CoordinateManager::to_logical(const CoreCoord core_coord) {
+    switch (core_coord.core_type) {
+        case CoreType::TENSIX:
+            return to_tensix_logical(core_coord);
+        case CoreType::DRAM:
+        case CoreType::ARC:
+        case CoreType::ACTIVE_ETH:
+        case CoreType::IDLE_ETH:
+        case CoreType::PCIE:
+        case CoreType::ROUTER_ONLY:
+            throw std::runtime_error("Core type is not supported for conversion to logical coordinates");
+    }
 }
 
-tt_physical_coords CoordinateManager::to_physical_coords(tt_virtual_coords virtual_coords) {
-    return to_physical_coords(to_logical_coords(virtual_coords));
-}
-
-tt_translated_coords CoordinateManager::to_translated_coords(tt_virtual_coords virtual_coords) {
-    return to_translated_coords(to_logical_coords(virtual_coords));
-}
-
-tt_logical_coords CoordinateManager::to_logical_coords(tt_translated_coords translated_coords) {
-    tt_physical_coords physical_coords = tt_physical_coords(translated_coords.x, translated_coords.y);
-    return to_logical_coords(physical_coords);
-}
-
-tt_physical_coords CoordinateManager::to_physical_coords(tt_translated_coords translated_coords) {
-    return to_physical_coords(to_logical_coords(translated_coords));
-}
-
-tt_virtual_coords CoordinateManager::to_virtual_coords(tt_translated_coords translated_coords) {
-    return to_virtual_coords(to_logical_coords(translated_coords));
+CoreCoord CoordinateManager::to_translated(const CoreCoord core_coord) {
+    switch (core_coord.core_type) {
+        case CoreType::TENSIX:
+            return to_tensix_translated(core_coord);
+        case CoreType::DRAM:
+        case CoreType::ARC:
+        case CoreType::ACTIVE_ETH:
+        case CoreType::IDLE_ETH:
+        case CoreType::PCIE:
+        case CoreType::ROUTER_ONLY:
+            throw std::runtime_error("Core type is not supported for conversion to translated coordinates");
+    }
 }
 
 void CoordinateManager::clear_harvesting_structures() {
@@ -189,4 +248,14 @@ std::unique_ptr<CoordinateManager> CoordinateManager::get_coordinate_manager(
     }
 
     throw std::runtime_error("Invalid architecture for creating coordinate manager");
+}
+
+// TODO(pjanevski): these functions should be deleted once
+// deep copy of CoordinateManager for SocDescriptor is implemented
+CoreCoord CoordinateManager::translated_to_logical_tensix(const CoreCoord core_coord) {
+    return core_coord;
+}
+
+CoreCoord CoordinateManager::logical_to_translated_tensix(const CoreCoord core_coord) {
+    return core_coord;
 }

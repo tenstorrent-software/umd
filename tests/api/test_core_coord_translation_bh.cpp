@@ -35,9 +35,9 @@ TEST(SocDescriptor, SocDescriptorBHNoHarvesting) {
     tt_xy_pair worker_grid_size = soc_desc.worker_grid_size;
     for (size_t x = 0; x < worker_grid_size.x; x++) {
         for (size_t y = 0; y < worker_grid_size.y; y++) {
-            tt_logical_coords logical_coords = tt_logical_coords(x, y);
-            tt_virtual_coords virtual_coords = soc_desc.to_virtual_coords(logical_coords);
-            tt_physical_coords physical_coords = soc_desc.to_physical_coords(logical_coords);
+            CoreCoord logical_coords = CoreCoord(x, y, CoreType::TENSIX, CoordSystem::LOGICAL);
+            CoreCoord virtual_coords = soc_desc.to_virtual(logical_coords);
+            CoreCoord physical_coords = soc_desc.to_physical(logical_coords);
             
             // Virtual and physical coordinates should be the same.
             EXPECT_EQ(physical_coords, virtual_coords);
@@ -52,15 +52,15 @@ TEST(SocDescriptor, SocDescriptorBHTopLeftCore) {
     tt_SocDescriptor soc_desc = tt_SocDescriptor(test_utils::GetAbsPath("tests/soc_descs/blackhole_140_arch_no_eth.yaml"), 1);
     tt_xy_pair worker_grid_size = soc_desc.worker_grid_size;
 
-    tt_logical_coords logical_coords = tt_logical_coords(0, 0);
+    CoreCoord logical_coords = CoreCoord(0, 0, CoreType::TENSIX, CoordSystem::LOGICAL);
 
     // Always expect same virtual coordinate for (0, 0) logical coordinate.
-    tt_virtual_coords virtual_cords = soc_desc.to_virtual_coords(logical_coords);
-    EXPECT_EQ(virtual_cords, tt_virtual_coords(1, 2));
+    CoreCoord virtual_cords = soc_desc.to_virtual(logical_coords);
+    EXPECT_EQ(virtual_cords, CoreCoord(1, 2, CoreType::TENSIX, CoordSystem::VIRTUAL));
 
     // This depends on harvesting mask. So expected physical coord is specific to this test and Blackhole arch.
-    tt_physical_coords physical_cords = soc_desc.to_physical_coords(logical_coords);
-    EXPECT_EQ(physical_cords, tt_physical_coords(2, 2));
+    CoreCoord physical_cords = soc_desc.to_physical(logical_coords);
+    EXPECT_EQ(physical_cords, CoreCoord(2, 2, CoreType::TENSIX, CoordSystem::PHYSICAL));
 }
 
 // Test logical to physical coordinate translation.
@@ -74,16 +74,16 @@ TEST(SocDescriptor, SocDescriptorBHLogicalPhysicalMapping) {
        
         soc_desc.perform_harvesting(harvesting_mask);
 
-        std::map<tt_logical_coords, tt_physical_coords> logical_to_physical;
-        std::set<tt_physical_coords> physical_coords_set;
+        std::map<CoreCoord, CoreCoord> logical_to_physical;
+        std::set<CoreCoord> physical_coords_set;
         tt_xy_pair worker_grid_size = soc_desc.worker_grid_size;
 
         std::size_t num_harvested_x = test_utils::get_num_harvested(harvesting_mask);
 
         for (size_t x = 0; x < worker_grid_size.x - num_harvested_x; x++) {
             for (size_t y = 0; y < worker_grid_size.y; y++) {
-                tt_logical_coords logical_coords = tt_logical_coords(x, y);
-                tt_physical_coords physical_coords = soc_desc.to_physical_coords(logical_coords);
+                CoreCoord logical_coords = CoreCoord(x, y, CoreType::TENSIX, CoordSystem::LOGICAL);
+                CoreCoord physical_coords = soc_desc.to_physical(logical_coords);
                 logical_to_physical[logical_coords] = physical_coords;
 
                 // Expect that logical to physical translation is 1-1 mapping. No duplicates for physical coordinates.
@@ -95,8 +95,8 @@ TEST(SocDescriptor, SocDescriptorBHLogicalPhysicalMapping) {
         EXPECT_EQ(physical_coords_set.size(), worker_grid_size.y * (worker_grid_size.x - num_harvested_x));
 
         for (auto it : logical_to_physical) {
-            tt_physical_coords physical_coords = it.second;
-            tt_logical_coords logical_coords = soc_desc.to_logical_coords(physical_coords);
+            CoreCoord physical_coords = it.second;
+            CoreCoord logical_coords = soc_desc.to_logical(physical_coords);
             
             // Expect that reverse mapping of physical coordinates gives the same logical coordinates
             // using which we got the physical coordinates.
@@ -116,16 +116,16 @@ TEST(SocDescriptor, SocDescriptorBHLogicalVirtualMapping) {
         
         soc_desc.perform_harvesting(harvesting_mask);
 
-        std::map<tt_logical_coords, tt_virtual_coords> logical_to_virtual;
-        std::set<tt_virtual_coords> virtual_coords_set;
+        std::map<CoreCoord, CoreCoord> logical_to_virtual;
+        std::set<CoreCoord> virtual_coords_set;
         tt_xy_pair worker_grid_size = soc_desc.worker_grid_size;
 
         std::size_t num_harvested_x = test_utils::get_num_harvested(harvesting_mask);
 
         for (size_t x = 0; x < worker_grid_size.x - num_harvested_x; x++) {
             for (size_t y = 0; y < worker_grid_size.y; y++) {
-                tt_logical_coords logical_coords = tt_logical_coords(x, y);
-                tt_virtual_coords virtual_coords = soc_desc.to_virtual_coords(logical_coords);
+                CoreCoord logical_coords = CoreCoord(x, y, CoreType::TENSIX, CoordSystem::LOGICAL);
+                CoreCoord virtual_coords = soc_desc.to_virtual(logical_coords);
                 logical_to_virtual[logical_coords] = virtual_coords;
 
                 // Expect that logical to virtual translation is 1-1 mapping. No duplicates for virtual coordinates.
@@ -137,8 +137,8 @@ TEST(SocDescriptor, SocDescriptorBHLogicalVirtualMapping) {
         EXPECT_EQ(virtual_coords_set.size(), worker_grid_size.y * (worker_grid_size.x - num_harvested_x));
 
         for (auto it : logical_to_virtual) {
-            tt_virtual_coords virtual_coords = it.second;
-            tt_logical_coords logical_coords = soc_desc.to_logical_coords(virtual_coords);
+            CoreCoord virtual_coords = it.second;
+            CoreCoord logical_coords = soc_desc.to_logical(virtual_coords);
 
             // Expect that reverse mapping of virtual coordinates gives the same logical coordinates
             // using which we got the virtual coordinates.
@@ -158,16 +158,16 @@ TEST(SocDescriptor, SocDescriptorBHLogicalTranslatedMapping) {
         
         soc_desc.perform_harvesting(harvesting_mask);
 
-        std::map<tt_logical_coords, tt_translated_coords> logical_to_translated;
-        std::set<tt_translated_coords> translated_coords_set;
+        std::map<CoreCoord, CoreCoord> logical_to_translated;
+        std::set<CoreCoord> translated_coords_set;
         tt_xy_pair worker_grid_size = soc_desc.worker_grid_size;
 
         std::size_t num_harvested_x = test_utils::get_num_harvested(harvesting_mask);
 
         for (size_t x = 0; x < worker_grid_size.x - num_harvested_x; x++) {
             for (size_t y = 0; y < worker_grid_size.y; y++) {
-                tt_logical_coords logical_coords = tt_logical_coords(x, y);
-                tt_translated_coords translated_coords = soc_desc.to_translated_coords(logical_coords);
+                CoreCoord logical_coords = CoreCoord(x, y, CoreType::TENSIX, CoordSystem::LOGICAL);
+                CoreCoord translated_coords = soc_desc.to_translated(logical_coords);
                 logical_to_translated[logical_coords] = translated_coords;
 
                 // Expect that logical to translated translation is 1-1 mapping. No duplicates for translated coordinates.
@@ -179,8 +179,8 @@ TEST(SocDescriptor, SocDescriptorBHLogicalTranslatedMapping) {
         EXPECT_EQ(translated_coords_set.size(), worker_grid_size.y * (worker_grid_size.x - num_harvested_x));
 
         for (auto it : logical_to_translated) {
-            tt_translated_coords translated_coords = it.second;
-            tt_logical_coords logical_coords = soc_desc.to_logical_coords(translated_coords);
+            CoreCoord translated_coords = it.second;
+            CoreCoord logical_coords = soc_desc.to_logical(translated_coords);
 
             // Expect that reverse mapping of translated coordinates gives the same logical coordinates
             // using which we got the translated coordinates.
@@ -201,9 +201,9 @@ TEST(SocDescriptor, SocDescriptorBHVirtualEqualTranslated) {
 
         for (std::size_t x = 0; x < soc_desc.worker_grid_size.x - num_harvested_x; x++) {
             for (std::size_t y = 0; y < soc_desc.worker_grid_size.y; y++) {
-                tt_logical_coords logical_coords = tt_logical_coords(x, y);
-                tt_translated_coords translated_coords = soc_desc.to_translated_coords(logical_coords);
-                tt_virtual_coords virtual_coords = soc_desc.to_virtual_coords(logical_coords);
+                CoreCoord logical_coords = CoreCoord(x, y, CoreType::TENSIX, CoordSystem::LOGICAL);
+                CoreCoord translated_coords = soc_desc.to_translated(logical_coords);
+                CoreCoord virtual_coords = soc_desc.to_virtual(logical_coords);
 
                 // Expect that translated coordinates are same as virtual coordinates.
                 EXPECT_EQ(translated_coords, virtual_coords);

@@ -19,6 +19,7 @@ set(UMD_DEVICE_SRCS
     coordinate_manager.cpp
     blackhole/blackhole_coordinate_manager.cpp
     wormhole/wormhole_coordinate_manager.cpp
+    grayskull/grayskull_coordinate_manager.cpp
     pcie/pci_device.cpp
     hugepage.cpp
 )
