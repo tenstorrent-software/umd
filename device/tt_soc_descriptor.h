@@ -122,7 +122,7 @@ public:
     // Default constructor. Creates uninitialized object with public access to all of its attributes.
     tt_SocDescriptor() = default;
     // Constructor used to build object from device descriptor file.    
-    tt_SocDescriptor(std::string device_descriptor_path, std::size_t harvesting_mask = 0);
+    tt_SocDescriptor(std::string device_descriptor_path, const std::size_t tensix_harvesting_mask = 0, const std::size_t dram_harvesting_mask = 0);
 
     // Copy constructor
     tt_SocDescriptor(const tt_SocDescriptor& other) :
@@ -162,11 +162,12 @@ public:
     CoreCoord to_virtual(const CoreCoord core_coord);
     CoreCoord to_translated(const CoreCoord core_coord);
 
-    void perform_harvesting(std::size_t harvesting_mask);
+    void tensix_harvesting(std::size_t harvesting_mask);
+    void dram_harvesting(const std::size_t dram_harvesting_mask);
 
 private:
     std::unique_ptr<CoordinateManager> coordinate_manager = nullptr;
-    void create_coordinate_manager(std::size_t harvesting_mask);
+    void create_coordinate_manager(const std::size_t tensix_harvesting_mask, const std::size_t dram_harvesting_mask);
     void load_core_descriptors_from_device_descriptor(YAML::Node &device_descriptor_yaml);
     void load_soc_features_from_device_descriptor(YAML::Node &device_descriptor_yaml);
 };

@@ -8,7 +8,9 @@
 #include <stdexcept>
 #include "coordinate_manager.h"
 #include "grayskull/grayskull_coordinate_manager.h"
+#include "grayskull/grayskull_implementation.h"
 #include "tt_core_coordinates.h"
+#include "device/tt_xy_pair.h"
 
 CoreCoord CoordinateManager::to_tensix_physical(const CoreCoord core_coord) {
     switch (core_coord.coord_system) {
@@ -62,11 +64,76 @@ CoreCoord CoordinateManager::to_tensix_translated(const CoreCoord core_coord) {
     }
 }
 
+CoreCoord CoordinateManager::to_dram_physical(const CoreCoord core_coord) {
+    switch (core_coord.coord_system) {
+        case CoordSystem::LOGICAL: {
+            tt_xy_pair physical_pair = dram_logical_to_physical.at({core_coord.x, core_coord.y});
+            return CoreCoord(physical_pair.x, physical_pair.y, CoreType::DRAM, CoordSystem::PHYSICAL);
+        }
+        case CoordSystem::VIRTUAL:
+            return to_dram_physical(to_logical(core_coord));
+        case CoordSystem::PHYSICAL:
+            return core_coord;
+        case CoordSystem::TRANSLATED: {
+            CoreCoord physical_coord = core_coord;
+            physical_coord.coord_system = CoordSystem::PHYSICAL;
+            return physical_coord; 
+        }  
+    }
+}
+
+CoreCoord CoordinateManager::to_dram_logical(const CoreCoord core_coord) {
+    switch (core_coord.coord_system) {
+        case CoordSystem::LOGICAL:
+            return core_coord;
+        case CoordSystem::PHYSICAL: {
+            tt_xy_pair logical_pair = dram_physical_to_logical.at({core_coord.x, core_coord.y});
+            return CoreCoord(logical_pair.x, logical_pair.y, CoreType::DRAM, CoordSystem::LOGICAL);
+        }
+        case CoordSystem::VIRTUAL: {
+            tt_xy_pair virtual_pair = dram_virtual_to_logical.at({core_coord.x, core_coord.y});
+            return CoreCoord(virtual_pair.x, virtual_pair.y, CoreType::DRAM, CoordSystem::LOGICAL);
+        }
+        case CoordSystem::TRANSLATED:
+            return to_logical(to_physical(core_coord));
+    }
+}
+
+CoreCoord CoordinateManager::to_dram_virtual(const CoreCoord core_coord) {
+    switch (core_coord.coord_system) {
+        case CoordSystem::LOGICAL: {
+            tt_xy_pair virtual_pair = dram_logical_to_virtual.at({core_coord.x, core_coord.y});
+            return CoreCoord(virtual_pair.x, virtual_pair.y, CoreType::DRAM, CoordSystem::VIRTUAL);
+        }
+        case CoordSystem::TRANSLATED:
+        case CoordSystem::PHYSICAL: {
+            return to_virtual(to_logical(core_coord));
+        }
+        case CoordSystem::VIRTUAL:
+            return core_coord;
+    }
+}
+
+CoreCoord CoordinateManager::to_dram_translated(const CoreCoord core_coord) {
+    switch (core_coord.coord_system) {
+        case CoordSystem::LOGICAL:
+        case CoordSystem::VIRTUAL: {
+            return to_dram_translated(to_dram_physical(core_coord));
+        }
+        case CoordSystem::PHYSICAL: {
+            return CoreCoord(core_coord.x, core_coord.y, CoreType::DRAM, CoordSystem::TRANSLATED);
+        }
+        case CoordSystem::TRANSLATED:
+            return core_coord;
+    }
+}
+
 CoreCoord CoordinateManager::to_physical(const CoreCoord core_coord) {
     switch (core_coord.core_type) {
         case CoreType::TENSIX:
             return to_tensix_physical(core_coord);
         case CoreType::DRAM:
+            return to_dram_physical(core_coord);
         case CoreType::ARC:
         case CoreType::ACTIVE_ETH:
         case CoreType::IDLE_ETH:
@@ -82,6 +149,7 @@ CoreCoord CoordinateManager::to_virtual(const CoreCoord core_coord) {
         case CoreType::TENSIX:
             return to_tensix_virtual(core_coord);
         case CoreType::DRAM:
+            return to_dram_virtual(core_coord);
         case CoreType::ARC:
         case CoreType::ACTIVE_ETH:
         case CoreType::IDLE_ETH:
@@ -96,6 +164,7 @@ CoreCoord CoordinateManager::to_logical(const CoreCoord core_coord) {
         case CoreType::TENSIX:
             return to_tensix_logical(core_coord);
         case CoreType::DRAM:
+            return to_dram_logical(core_coord);
         case CoreType::ARC:
         case CoreType::ACTIVE_ETH:
         case CoreType::IDLE_ETH:
@@ -110,6 +179,7 @@ CoreCoord CoordinateManager::to_translated(const CoreCoord core_coord) {
         case CoreType::TENSIX:
             return to_tensix_translated(core_coord);
         case CoreType::DRAM:
+            return to_dram_translated(core_coord);
         case CoreType::ARC:
         case CoreType::ACTIVE_ETH:
         case CoreType::IDLE_ETH:
@@ -119,7 +189,7 @@ CoreCoord CoordinateManager::to_translated(const CoreCoord core_coord) {
     }
 }
 
-void CoordinateManager::clear_harvesting_structures() {
+void CoordinateManager::clear_tensix_harvesting_structures() {
     logical_x_to_physical_x.clear();
     logical_y_to_physical_y.clear();
     logical_x_to_virtual_x.clear();
@@ -130,6 +200,13 @@ void CoordinateManager::clear_harvesting_structures() {
     virtual_y_to_logical_y.clear();
 }
 
+void CoordinateManager::clear_dram_harvesting_structures() {
+    dram_logical_to_virtual.clear();
+    dram_logical_to_physical.clear();
+    dram_virtual_to_logical.clear();
+    dram_physical_to_logical.clear();
+}
+
 std::set<std::size_t> CoordinateManager::get_x_coordinates_to_harvest(std::size_t harvesting_mask) {
     return {};
 }
@@ -138,8 +215,8 @@ std::set<std::size_t> CoordinateManager::get_y_coordinates_to_harvest(std::size_
     return {};
 }
 
-void CoordinateManager::perform_harvesting(std::size_t harvesting_mask) {
-    clear_harvesting_structures();
+void CoordinateManager::tensix_harvesting(const std::size_t harvesting_mask) {
+    clear_tensix_harvesting_structures();
 
     std::set<size_t> physical_x_unharvested;
     std::set<size_t> physical_y_unharvested;
@@ -165,6 +242,19 @@ void CoordinateManager::perform_harvesting(std::size_t harvesting_mask) {
 
     fill_logical_to_physical_mapping(x_coordinates_to_harvest, y_coordinates_to_harvest, physical_x_unharvested, physical_y_unharvested);
     fill_logical_to_virtual_mapping(physical_x_unharvested, physical_y_unharvested);
+}
+
+void CoordinateManager::dram_harvesting(const std::size_t dram_harvesting_mask) {
+
+    for (std::size_t x = 0; x < dram_grid_size.x; x++) {
+        for (std::size_t y = 0; y < dram_grid_size.y; y++) {
+            dram_logical_to_virtual[{x, y}] = dram_cores[x * dram_grid_size.y + y];
+            dram_virtual_to_logical[dram_cores[x * dram_grid_size.y + y]] = {x, y};
+
+            dram_logical_to_physical[{x, y}] = dram_cores[x * dram_grid_size.y + y];
+            dram_physical_to_logical[dram_cores[x * dram_grid_size.y + y]] = {x, y};
+        }
+    }
 }
 
 void CoordinateManager::fill_logical_to_physical_mapping(
@@ -226,23 +316,24 @@ void CoordinateManager::fill_logical_to_virtual_mapping(const std::set<size_t>& 
     }
 }
 
-#include "device/blackhole/blackhole_coordinate_manager.h"
 #include "device/grayskull/grayskull_coordinate_manager.h"
 #include "device/wormhole/wormhole_coordinate_manager.h"
+#include "device/blackhole/blackhole_coordinate_manager.h"
 
 std::unique_ptr<CoordinateManager> CoordinateManager::get_coordinate_manager(
     tt::ARCH arch,
     const tt_xy_pair& worker_grid_size,
     const std::vector<tt_xy_pair>& workers,
-    std::size_t harvesting_mask) {
+    const std::size_t tensix_harvesting_mask,
+    const std::size_t dram_harvesting_mask) {
 
     switch (arch) {
         case tt::ARCH::GRAYSKULL:
-            return std::make_unique<GrayskullCoordinateManager>(worker_grid_size, workers, harvesting_mask);
+            return std::make_unique<GrayskullCoordinateManager>(worker_grid_size, workers, tensix_harvesting_mask, dram_harvesting_mask);
         case tt::ARCH::WORMHOLE_B0:
-            return std::make_unique<WormholeCoordinateManager>(worker_grid_size, workers, harvesting_mask);
+            return std::make_unique<WormholeCoordinateManager>(worker_grid_size, workers, tensix_harvesting_mask, dram_harvesting_mask);
         case tt::ARCH::BLACKHOLE:
-            return std::make_unique<BlackholeCoordinateManager>(worker_grid_size, workers, harvesting_mask);
+            return std::make_unique<BlackholeCoordinateManager>(worker_grid_size, workers, tensix_harvesting_mask, dram_harvesting_mask);
         case tt::ARCH::Invalid:
             throw std::runtime_error("Invalid architecture for creating coordinate manager");
     }

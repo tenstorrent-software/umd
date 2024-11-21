@@ -17,16 +17,23 @@
 class CoordinateManager {
 
 public:
-    CoordinateManager(const tt_xy_pair& worker_grid_size, const std::vector<tt_xy_pair>& workers, std::size_t harvesting_mask)
-        : worker_grid_size(worker_grid_size), workers(workers), harvesting_mask(harvesting_mask) {}
+    CoordinateManager(
+        const tt_xy_pair& worker_grid_size, const std::vector<tt_xy_pair>& workers, const std::size_t tensix_harvesting_mask,
+        const tt_xy_pair& dram_grid_size, const std::vector<tt_xy_pair>& dram_cores, const std::size_t dram_harvesting_mask)
+        : worker_grid_size(worker_grid_size), workers(workers), tensix_harvesting_mask(tensix_harvesting_mask),
+          dram_grid_size(dram_grid_size), dram_cores(dram_cores), dram_harvesting_mask(dram_harvesting_mask)
+        {}
 
-    virtual void perform_harvesting(std::size_t harvesting_mask);
+    virtual void tensix_harvesting(const std::size_t harvesting_mask);
+
+    virtual void dram_harvesting(const std::size_t dram_harvesting_mask);
 
     static std::unique_ptr<CoordinateManager> get_coordinate_manager(
         tt::ARCH arch,
         const tt_xy_pair& worker_grid_size,
         const std::vector<tt_xy_pair>& workers,
-        std::size_t harvesting_mask);
+        const std::size_t tensix_harvesting_mask,
+        const std::size_t dram_harvesting_mask);
 
     CoordinateManager(CoordinateManager& other) = default;
 
@@ -38,8 +45,9 @@ public:
     virtual ~CoordinateManager() = default;
 
 protected:
-    virtual void clear_harvesting_structures();
-    
+    void clear_tensix_harvesting_structures();
+    void clear_dram_harvesting_structures();
+
     virtual std::set<std::size_t> get_x_coordinates_to_harvest(std::size_t harvesting_mask);
     virtual std::set<std::size_t> get_y_coordinates_to_harvest(std::size_t harvesting_mask);
 
@@ -52,6 +60,11 @@ protected:
     CoreCoord to_tensix_logical(const CoreCoord core_coord);
     CoreCoord to_tensix_virtual(const CoreCoord core_coord);
     CoreCoord to_tensix_translated(const CoreCoord core_coord);
+
+    CoreCoord to_dram_physical(const CoreCoord core_coord);
+    CoreCoord to_dram_logical(const CoreCoord core_coord);
+    CoreCoord to_dram_virtual(const CoreCoord core_coord);
+    CoreCoord to_dram_translated(const CoreCoord core_coord);
 
     // TODO(pjanevski): this should be abstract functions
     // Making deep copy of SocDescriptor is harded if these are abstract
@@ -70,7 +83,18 @@ protected:
     std::map<std::size_t, std::size_t> virtual_y_to_logical_y;
     std::map<std::size_t, std::size_t> virtual_x_to_logical_x;
 
+    std::map<tt_xy_pair, tt_xy_pair> dram_logical_to_virtual;
+    std::map<tt_xy_pair, tt_xy_pair> dram_logical_to_physical;
+
+    std::map<tt_xy_pair, tt_xy_pair> dram_virtual_to_logical;
+    std::map<tt_xy_pair, tt_xy_pair> dram_physical_to_logical;
+
     const tt_xy_pair worker_grid_size;
     const std::vector<tt_xy_pair>& workers;
-    const std::size_t harvesting_mask;
+    const std::size_t tensix_harvesting_mask;
+
+    // TODO(pjanevski): put const for this attributes
+    const tt_xy_pair dram_grid_size;
+    const std::vector<tt_xy_pair> dram_cores;
+    const std::size_t dram_harvesting_mask;
 };

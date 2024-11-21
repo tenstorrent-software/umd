@@ -10,6 +10,7 @@
 
 #include "device/architecture_implementation.h"
 #include "device/tlb.h"
+#include "device/tt_xy_pair.h"
 
 namespace tt::umd {
 
@@ -102,25 +103,21 @@ enum class arc_message_type {
 };
 
 // DEVICE_DATA
-static constexpr std::array<xy_pair, 18> DRAM_LOCATIONS = {
-    {{0, 0},
-     {5, 0},
-     {0, 1},
-     {5, 1},
-     {5, 2},
-     {5, 3},
-     {5, 4},
-     {0, 5},
-     {5, 5},
-     {0, 6},
-     {5, 6},
-     {0, 7},
-     {5, 7},
-     {5, 8},
-     {5, 9},
-     {5, 10},
-     {0, 11},
-     {5, 11}}};
+const std::size_t NUM_DRAM_BANKS = 6;
+const std::size_t NUM_NOC_PORTS_PER_DRAM_BANK = 3;
+
+static const std::vector<tt_xy_pair> DRAM_CORES = {
+    {{0, 0}, {5, 0}, {0, 1},
+     {5, 1}, {5, 2}, {5, 3},
+     {5, 4}, {0, 5}, {5, 5},
+     {0, 6}, {5, 6}, {0, 7},
+     {5, 7}, {5, 8}, {5, 9},
+     {5, 10},{0, 11},{5, 11}}};
+
+// TODO: DRAM locations should be deleted. We keep it for compatibility with
+// the existing code in clients which rely on DRAM_LOCATIONS.
+static const std::vector<tt_xy_pair> DRAM_LOCATIONS = DRAM_CORES;
+
 static constexpr std::array<xy_pair, 1> ARC_LOCATIONS = {{{0, 2}}};
 static constexpr std::array<xy_pair, 1> PCI_LOCATIONS = {{{0, 4}}};
 static constexpr std::array<xy_pair, 16> ETH_LOCATIONS = {

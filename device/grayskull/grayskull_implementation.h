@@ -10,6 +10,7 @@
 
 #include "device/architecture_implementation.h"
 #include "device/tlb.h"
+#include "device/tt_xy_pair.h"
 
 namespace tt::umd {
 
@@ -104,7 +105,20 @@ enum class arc_message_type {
 };
 
 // DEVICE_DATA
-static const std::array<xy_pair, 8> DRAM_LOCATIONS = {{{1, 6}, {4, 6}, {7, 6}, {10, 6}, {1, 0}, {4, 0}, {7, 0}, {10, 0}}};
+const std::size_t NUM_DRAM_BANKS = 8;
+const std::size_t NUM_NOC_PORTS_PER_DRAM_BANK = 1;
+static const std::vector<tt_xy_pair> DRAM_CORES = {{
+    {1, 0},
+    {1, 6},
+    {4, 0},
+    {4, 6},
+    {7, 0},
+    {7, 6},
+    {10, 0},
+    {10, 6}}};
+// TODO: DRAM locations should be deleted. We keep it for compatibility with
+// the existing code in clients which rely on DRAM_LOCATIONS.
+static const std::vector<tt_xy_pair> DRAM_LOCATIONS = DRAM_CORES;
 static const std::array<xy_pair, 1> ARC_LOCATIONS = {{{0, 2}}};
 static const std::array<xy_pair, 1> PCI_LOCATIONS = {{{0, 4}}};
 static const std::array<xy_pair, 0> ETH_LOCATIONS = {};

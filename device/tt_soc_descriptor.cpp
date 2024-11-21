@@ -166,12 +166,16 @@ void tt_SocDescriptor::load_core_descriptors_from_device_descriptor(YAML::Node &
     }
 }
 
-void tt_SocDescriptor::create_coordinate_manager(std::size_t harvesting_mask) {
-    coordinate_manager = CoordinateManager::get_coordinate_manager(arch, worker_grid_size, workers, harvesting_mask);
+void tt_SocDescriptor::create_coordinate_manager(const std::size_t tensix_harvesting_mask, const std::size_t dram_harvesting_mask) {
+    coordinate_manager = CoordinateManager::get_coordinate_manager(arch, worker_grid_size, workers, tensix_harvesting_mask, dram_harvesting_mask);
 }
 
-void tt_SocDescriptor::perform_harvesting(std::size_t harvesting_mask) {
-    coordinate_manager->perform_harvesting(harvesting_mask);
+void tt_SocDescriptor::tensix_harvesting(std::size_t harvesting_mask) {
+    coordinate_manager->tensix_harvesting(harvesting_mask);
+}
+
+void tt_SocDescriptor::dram_harvesting(const std::size_t dram_harvesting_mask) {
+    coordinate_manager->dram_harvesting(dram_harvesting_mask);
 }
 
 CoreCoord tt_SocDescriptor::to_physical(const CoreCoord core_coord) {
@@ -190,7 +194,7 @@ CoreCoord tt_SocDescriptor::to_translated(const CoreCoord core_coord) {
     return coordinate_manager->to_translated(core_coord);
 }
 
-tt_SocDescriptor::tt_SocDescriptor(std::string device_descriptor_path, std::size_t harvesting_mask) {
+tt_SocDescriptor::tt_SocDescriptor(std::string device_descriptor_path, const std::size_t tensix_harvesting_mask, const std::size_t dram_harvesting_mask) {
     std::ifstream fdesc(device_descriptor_path);
     if (fdesc.fail()) {
         throw std::runtime_error(fmt::format("Error: device descriptor file {} does not exist!", device_descriptor_path));
@@ -213,8 +217,9 @@ tt_SocDescriptor::tt_SocDescriptor(std::string device_descriptor_path, std::size
     arch_name_value = trim(arch_name_value);
     arch = get_arch_name(arch_name_value);
     load_soc_features_from_device_descriptor(device_descriptor_yaml);
-    create_coordinate_manager(harvesting_mask);
-    perform_harvesting(harvesting_mask);
+    create_coordinate_manager(tensix_harvesting_mask, dram_harvesting_mask);
+    tensix_harvesting(tensix_harvesting_mask);
+    dram_harvesting(dram_harvesting_mask);
 }
 
 int tt_SocDescriptor::get_num_dram_channels() const {

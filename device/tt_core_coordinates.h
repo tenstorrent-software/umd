@@ -45,4 +45,9 @@ enum class CoreType {
 
     CoreType core_type;
     CoordSystem coord_system;
+
+    bool operator==(const CoreCoord& other) const
+    {
+        return this->x == other.x && this->y == other.y && this->core_type == other.core_type && this->coord_system == other.coord_system;
+    }
  };

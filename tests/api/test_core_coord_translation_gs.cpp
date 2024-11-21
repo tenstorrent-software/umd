@@ -8,6 +8,7 @@
 #include "device/tt_soc_descriptor.h"
 #include "tests/test_utils/generate_cluster_desc.hpp"
 #include "tests/test_utils/soc_desc_test_utils.hpp"
+#include "device/grayskull/grayskull_implementation.h"
 
 // Grayskull workers - x-y annotation
 // functional_workers:
@@ -39,14 +40,15 @@ TEST(SocDescriptor, SocDescriptorGSNoHarvesting) {
             CoreCoord physical_coords = soc_desc.to_physical(logical_coords);
             
             // Virtual and physical coordinates should be the same.
-            EXPECT_EQ(physical_coords, virtual_coords);
+            EXPECT_EQ(physical_coords.x, virtual_coords.x);
+            EXPECT_EQ(physical_coords.y, virtual_coords.y);
         }
     }
 }
 
-// Test basic translation to virtual and physical noc coordinates.
-// We expect that the top left core will have virtual and physical coordinates (1, 1) and (1, 2) for
-// the logical coordinates if the first row is harvested.
+// // Test basic translation to virtual and physical noc coordinates.
+// // We expect that the top left core will have virtual and physical coordinates (1, 1) and (1, 2) for
+// // the logical coordinates if the first row is harvested.
 TEST(SocDescriptor, SocDescriptorGSTopLeftCore) {
 
     tt_SocDescriptor soc_desc = tt_SocDescriptor(test_utils::GetAbsPath("tests/soc_descs/grayskull_10x12.yaml"));
@@ -63,8 +65,8 @@ TEST(SocDescriptor, SocDescriptorGSTopLeftCore) {
     EXPECT_EQ(physical_cords, CoreCoord(1, 1, CoreType::TENSIX, CoordSystem::PHYSICAL));
 }
 
-// Test logical to physical, virtual and translated coordinates.
-// We always expect that physical, virtual and translated coordinates are the same.
+// // Test logical to physical, virtual and translated coordinates.
+// // We always expect that physical, virtual and translated coordinates are the same.
 TEST(SocDescriptor, SocDescriptorGSTranslatingCoords) {
     tt_SocDescriptor soc_desc = tt_SocDescriptor(test_utils::GetAbsPath("tests/soc_descs/grayskull_10x12.yaml"));
     tt_xy_pair worker_grid_size = soc_desc.worker_grid_size;
@@ -77,15 +79,18 @@ TEST(SocDescriptor, SocDescriptorGSTranslatingCoords) {
             CoreCoord translated_coords = soc_desc.to_translated(logical_coords);
             
             // Virtual, physical and translated coordinates should be the same.
-            EXPECT_EQ(physical_coords, virtual_coords);
-            EXPECT_EQ(physical_coords, translated_coords);
+            EXPECT_EQ(physical_coords.x, virtual_coords.x);
+            EXPECT_EQ(physical_coords.y, virtual_coords.y);
+
+            EXPECT_EQ(physical_coords.x, translated_coords.x);
+            EXPECT_EQ(physical_coords.y, translated_coords.y);
         }
     }
 }
 
-// Test logical to physical coordinate translation.
-// For the full grid of logical coordinates we expect that there are no duplicates of physical coordinates.
-// For the reverse mapping back of physical to logical coordinates we expect that same logical coordinates are returned as from original mapping.
+// // Test logical to physical coordinate translation.
+// // For the full grid of logical coordinates we expect that there are no duplicates of physical coordinates.
+// // For the reverse mapping back of physical to logical coordinates we expect that same logical coordinates are returned as from original mapping.
 TEST(SocDescriptor, SocDescriptorGSLogicalPhysicalMapping) {
 
     tt_SocDescriptor soc_desc = tt_SocDescriptor(test_utils::GetAbsPath("tests/soc_descs/grayskull_10x12.yaml"));
@@ -118,9 +123,9 @@ TEST(SocDescriptor, SocDescriptorGSLogicalPhysicalMapping) {
     }
 }
 
-// Test logical to virtual coordinate translation.
-// For the full grid of logical coordinates we expect that there are no duplicates of virtual coordinates.
-// For the reverse mapping back of virtual to logical coordinates we expect that same logical coordinates are returned as from original mapping.
+// // Test logical to virtual coordinate translation.
+// // For the full grid of logical coordinates we expect that there are no duplicates of virtual coordinates.
+// // For the reverse mapping back of virtual to logical coordinates we expect that same logical coordinates are returned as from original mapping.
 TEST(SocDescriptor, SocDescriptorGSLogicalVirtualMapping) {
 
     tt_SocDescriptor soc_desc = tt_SocDescriptor(test_utils::GetAbsPath("tests/soc_descs/grayskull_10x12.yaml"));
@@ -150,5 +155,21 @@ TEST(SocDescriptor, SocDescriptorGSLogicalVirtualMapping) {
         // Expect that reverse mapping of virtual coordinates gives the same logical coordinates
         // using which we got the virtual coordinates.
         EXPECT_EQ(it.first, logical_coords);
+    }
+}
+
+TEST(CoordinateManager, CoordinateManagerGSDRAMNoHarvesting) {
+    tt_SocDescriptor soc_desc = tt_SocDescriptor(test_utils::GetAbsPath("tests/soc_descs/grayskull_10x12.yaml"), 0 ,0);
+
+    const std::size_t num_dram_banks = tt::umd::grayskull::NUM_DRAM_BANKS;
+    const std::vector<tt_xy_pair>& dram_cores = tt::umd::grayskull::DRAM_CORES;
+
+    for (std::size_t dram_bank = 0; dram_bank < num_dram_banks; dram_bank++) {
+        const CoreCoord dram_logical(dram_bank, 0, CoreType::DRAM, CoordSystem::LOGICAL);
+        const CoreCoord expected_physical = CoreCoord(dram_cores[dram_bank].x, dram_cores[dram_bank].y, CoreType::DRAM, CoordSystem::PHYSICAL);
+
+        const CoreCoord dram_physical = soc_desc.to_physical(dram_logical);
+
+        EXPECT_EQ(dram_physical, expected_physical);
     }
 }

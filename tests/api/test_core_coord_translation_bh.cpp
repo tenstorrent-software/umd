@@ -8,7 +8,7 @@
 #include "device/tt_soc_descriptor.h"
 #include "tests/test_utils/generate_cluster_desc.hpp"
 #include "tests/test_utils/soc_desc_test_utils.hpp"
-
+#include "device/blackhole/blackhole_implementation.h"
 
 // Blackhole workers - x-y annotation
 // functional_workers:
@@ -40,14 +40,15 @@ TEST(SocDescriptor, SocDescriptorBHNoHarvesting) {
             CoreCoord physical_coords = soc_desc.to_physical(logical_coords);
             
             // Virtual and physical coordinates should be the same.
-            EXPECT_EQ(physical_coords, virtual_coords);
+            EXPECT_EQ(physical_coords.x, virtual_coords.x);
+            EXPECT_EQ(physical_coords.y, virtual_coords.y);
         }
     }
 }
 
-// Test basic translation to virtual and physical noc coordinates.
-// We expect that the top left core will have virtual and physical coordinates (1, 2) and (2, 2) for
-// the logical coordinates if the first row is harvested.
+// // Test basic translation to virtual and physical noc coordinates.
+// // We expect that the top left core will have virtual and physical coordinates (1, 2) and (2, 2) for
+// // the logical coordinates if the first row is harvested.
 TEST(SocDescriptor, SocDescriptorBHTopLeftCore) {
     tt_SocDescriptor soc_desc = tt_SocDescriptor(test_utils::GetAbsPath("tests/soc_descs/blackhole_140_arch_no_eth.yaml"), 1);
     tt_xy_pair worker_grid_size = soc_desc.worker_grid_size;
@@ -63,16 +64,16 @@ TEST(SocDescriptor, SocDescriptorBHTopLeftCore) {
     EXPECT_EQ(physical_cords, CoreCoord(2, 2, CoreType::TENSIX, CoordSystem::PHYSICAL));
 }
 
-// Test logical to physical coordinate translation.
-// For the full grid of logical coordinates we expect that there are no duplicates of physical coordinates.
-// For the reverse mapping back of physical to logical coordinates we expect that same logical coordinates are returned as from original mapping.
+// // Test logical to physical coordinate translation.
+// // For the full grid of logical coordinates we expect that there are no duplicates of physical coordinates.
+// // For the reverse mapping back of physical to logical coordinates we expect that same logical coordinates are returned as from original mapping.
 TEST(SocDescriptor, SocDescriptorBHLogicalPhysicalMapping) {
 
     const std::size_t max_num_harvested_x = 14;
     tt_SocDescriptor soc_desc = tt_SocDescriptor(test_utils::GetAbsPath("tests/soc_descs/blackhole_140_arch.yaml"));
     for (std::size_t harvesting_mask = 0; harvesting_mask < (1 << max_num_harvested_x); harvesting_mask++) {
        
-        soc_desc.perform_harvesting(harvesting_mask);
+        soc_desc.tensix_harvesting(harvesting_mask);
 
         std::map<CoreCoord, CoreCoord> logical_to_physical;
         std::set<CoreCoord> physical_coords_set;
@@ -105,16 +106,16 @@ TEST(SocDescriptor, SocDescriptorBHLogicalPhysicalMapping) {
     }
 }
 
-// Test logical to virtual coordinate translation.
-// For the full grid of logical coordinates we expect that there are no duplicates of virtual coordinates.
-// For the reverse mapping back of virtual to logical coordinates we expect that same logical coordinates are returned as from original mapping.
+// // Test logical to virtual coordinate translation.
+// // For the full grid of logical coordinates we expect that there are no duplicates of virtual coordinates.
+// // For the reverse mapping back of virtual to logical coordinates we expect that same logical coordinates are returned as from original mapping.
 TEST(SocDescriptor, SocDescriptorBHLogicalVirtualMapping) {
 
     const std::size_t max_num_harvested_x = 14;
     tt_SocDescriptor soc_desc = tt_SocDescriptor(test_utils::GetAbsPath("tests/soc_descs/blackhole_140_arch.yaml"));
     for (std::size_t harvesting_mask = 0; harvesting_mask < (1 << max_num_harvested_x); harvesting_mask++) {
         
-        soc_desc.perform_harvesting(harvesting_mask);
+        soc_desc.tensix_harvesting(harvesting_mask);
 
         std::map<CoreCoord, CoreCoord> logical_to_virtual;
         std::set<CoreCoord> virtual_coords_set;
@@ -147,16 +148,16 @@ TEST(SocDescriptor, SocDescriptorBHLogicalVirtualMapping) {
     }
 }
 
-// Test logical to translated coordinate translation.
-// For the full grid of logical coordinates we expect that there are no duplicates of translated coordinates.
-// For the reverse mapping back of translated to logical coordinates we expect that same logical coordinates are returned as from original mapping.
+// // Test logical to translated coordinate translation.
+// // For the full grid of logical coordinates we expect that there are no duplicates of translated coordinates.
+// // For the reverse mapping back of translated to logical coordinates we expect that same logical coordinates are returned as from original mapping.
 TEST(SocDescriptor, SocDescriptorBHLogicalTranslatedMapping) {
 
     const std::size_t max_num_harvested_x = 14;
     tt_SocDescriptor soc_desc = tt_SocDescriptor(test_utils::GetAbsPath("tests/soc_descs/blackhole_140_arch.yaml"));
     for (std::size_t harvesting_mask = 0; harvesting_mask < (1 << max_num_harvested_x); harvesting_mask++) {
         
-        soc_desc.perform_harvesting(harvesting_mask);
+        soc_desc.tensix_harvesting(harvesting_mask);
 
         std::map<CoreCoord, CoreCoord> logical_to_translated;
         std::set<CoreCoord> translated_coords_set;
@@ -189,13 +190,13 @@ TEST(SocDescriptor, SocDescriptorBHLogicalTranslatedMapping) {
     }
 }
 
-// Test that virtual and translated coordinates are same for all logical coordinates.
-// This is expected for Blackhole way of harvesting.
+// // Test that virtual and translated coordinates are same for all logical coordinates.
+// // This is expected for Blackhole way of harvesting.
 TEST(SocDescriptor, SocDescriptorBHVirtualEqualTranslated) {
     const std::size_t max_num_harvested_x = 14;
     tt_SocDescriptor soc_desc = tt_SocDescriptor(test_utils::GetAbsPath("tests/soc_descs/blackhole_140_arch.yaml"));
     for (std::size_t harvesting_mask = 0; harvesting_mask < (1 << max_num_harvested_x); harvesting_mask++) {
-        soc_desc.perform_harvesting(harvesting_mask);
+        soc_desc.tensix_harvesting(harvesting_mask);
         
         std::size_t num_harvested_x = test_utils::get_num_harvested(harvesting_mask);
 
@@ -206,8 +207,157 @@ TEST(SocDescriptor, SocDescriptorBHVirtualEqualTranslated) {
                 CoreCoord virtual_coords = soc_desc.to_virtual(logical_coords);
 
                 // Expect that translated coordinates are same as virtual coordinates.
-                EXPECT_EQ(translated_coords, virtual_coords);
+                EXPECT_EQ(translated_coords.x, virtual_coords.x);
+                EXPECT_EQ(translated_coords.y, virtual_coords.y);
             }
         }
     } 
+}
+
+TEST(CoordinateManager, CoordinateManagerBHDRAMNoHarvesting) {
+    tt_SocDescriptor soc_desc = tt_SocDescriptor(test_utils::GetAbsPath("tests/soc_descs/blackhole_140_arch.yaml"), 0 ,0);
+
+    const std::size_t num_dram_banks = tt::umd::blackhole::NUM_DRAM_BANKS;
+    const std::size_t num_noc_ports_per_bank = tt::umd::blackhole::NUM_NOC_PORTS_PER_DRAM_BANK;
+    const std::vector<tt_xy_pair>& dram_cores = tt::umd::blackhole::DRAM_CORES;
+
+    for (std::size_t dram_bank = 0; dram_bank < num_dram_banks; dram_bank++) {
+        for (std::size_t noc_port = 0; noc_port < num_noc_ports_per_bank; noc_port++) {
+            const CoreCoord dram_logical(dram_bank, noc_port, CoreType::DRAM, CoordSystem::LOGICAL);
+            const std::size_t physical_core_index = dram_bank * num_noc_ports_per_bank + noc_port;
+            const CoreCoord expected_physical = CoreCoord(dram_cores[physical_core_index].x, dram_cores[physical_core_index].y, CoreType::DRAM, CoordSystem::PHYSICAL);
+
+            const CoreCoord dram_physical = soc_desc.to_physical(dram_logical);
+
+            EXPECT_EQ(dram_physical, expected_physical);
+        }
+    }
+}
+
+TEST(CoordinateManager, CoordinateManagerBHDRAMTopLeft) {
+    tt_SocDescriptor soc_desc = tt_SocDescriptor(test_utils::GetAbsPath("tests/soc_descs/blackhole_140_arch.yaml"), 0, 1);
+
+    const CoreCoord top_left_dram_logical = CoreCoord(0, 0, CoreType::DRAM, CoordSystem::LOGICAL);
+    const CoreCoord expected_top_left_physical = CoreCoord(0, 2, CoreType::DRAM, CoordSystem::PHYSICAL);
+
+    const CoreCoord top_left_physical = soc_desc.to_physical(top_left_dram_logical);
+
+    EXPECT_EQ(top_left_physical, expected_top_left_physical);
+}
+
+// Test logical to physical DRAM coordinate translation.
+// For the full grid of logical coordinates we expect that there are no duplicates of physical coordinates.
+// For the reverse mapping back of physical to logical coordinates we expect that same logical coordinates are returned as from original mapping.
+TEST(CoordinateManager, CoordinateManagerBHDRAMLogicalPhysicalMapping) {
+
+    tt_SocDescriptor soc_desc = tt_SocDescriptor(test_utils::GetAbsPath("tests/soc_descs/blackhole_140_arch.yaml"));
+
+    const std::size_t max_num_banks_harvested = tt::umd::blackhole::NUM_DRAM_BANKS;
+    const std::size_t num_dram_banks = tt::umd::blackhole::NUM_DRAM_BANKS;
+    const std::size_t num_noc_ports_per_bank = tt::umd::blackhole::NUM_NOC_PORTS_PER_DRAM_BANK;
+    const std::vector<tt_xy_pair>& dram_cores = tt::umd::blackhole::DRAM_CORES;
+
+    for (std::size_t harvesting_mask = 0; harvesting_mask < (1 << max_num_banks_harvested); harvesting_mask++) {
+       
+        soc_desc.dram_harvesting(harvesting_mask);
+
+        std::map<CoreCoord, CoreCoord> logical_to_physical;
+        std::set<CoreCoord> physical_coords_set;
+
+        std::size_t num_banks_harvested = test_utils::get_num_harvested(harvesting_mask);
+
+        for (size_t x = 0; x < num_dram_banks - num_banks_harvested; x++) {
+            for (size_t y = 0; y < num_noc_ports_per_bank; y++) {
+                const CoreCoord logical_coords = CoreCoord(x, y, CoreType::TENSIX, CoordSystem::LOGICAL);
+                const CoreCoord physical_coords = soc_desc.to_physical(logical_coords);
+                logical_to_physical[logical_coords] = physical_coords;
+
+                // Expect that logical to physical translation is 1-1 mapping. No duplicates for physical coordinates.
+                EXPECT_EQ(physical_coords_set.count(physical_coords), 0);
+                physical_coords_set.insert(physical_coords);
+            }
+        }
+
+        EXPECT_EQ(physical_coords_set.size(), num_noc_ports_per_bank * (num_dram_banks - num_banks_harvested));
+
+        for (auto it : logical_to_physical) {
+            const CoreCoord physical_coords = it.second;
+            const CoreCoord logical_coords = soc_desc.to_logical(physical_coords);
+            
+            // Expect that reverse mapping of physical coordinates gives the same logical coordinates
+            // using which we got the physical coordinates.
+            EXPECT_EQ(it.first, logical_coords);
+        }
+    }
+}
+
+// Test logical to virtual DRAM coordinate translation.
+// For the full grid of logical coordinates we expect that there are no duplicates of virtual coordinates.
+// For the reverse mapping back of virtual to logical coordinates we expect that same logical coordinates are returned as from original mapping.
+TEST(CoordinateManager, CoordinateManagerBHDRAMLogicalVirtualMapping) {
+
+    const std::size_t max_num_banks_harvested = tt::umd::blackhole::NUM_DRAM_BANKS;
+    const std::size_t num_dram_banks = tt::umd::blackhole::NUM_DRAM_BANKS;
+    const std::size_t num_noc_ports_per_bank = tt::umd::blackhole::NUM_NOC_PORTS_PER_DRAM_BANK;
+
+    tt_SocDescriptor soc_desc = tt_SocDescriptor(test_utils::GetAbsPath("tests/soc_descs/blackhole_140_arch.yaml"));
+
+    for (std::size_t harvesting_mask = 0; harvesting_mask < (1 << max_num_banks_harvested); harvesting_mask++) {
+
+        soc_desc.dram_harvesting(harvesting_mask);
+
+        std::map<CoreCoord, CoreCoord> logical_to_virtual;
+        std::set<CoreCoord> virtual_coords_set;
+
+        std::size_t num_harvested_banks = test_utils::get_num_harvested(harvesting_mask);
+
+        for (size_t x = 0; x < num_dram_banks - num_harvested_banks; x++) {
+            for (size_t y = 0; y < num_noc_ports_per_bank; y++) {
+                CoreCoord logical_coords = CoreCoord(x, y, CoreType::TENSIX, CoordSystem::LOGICAL);
+                CoreCoord virtual_coords = soc_desc.to_virtual(logical_coords);
+                logical_to_virtual[logical_coords] = virtual_coords;
+
+                // Expect that logical to virtual translation is 1-1 mapping. No duplicates for virtual coordinates.
+                EXPECT_EQ(virtual_coords_set.count(virtual_coords), 0);
+                virtual_coords_set.insert(virtual_coords);
+            }
+        }
+
+        for (auto it : logical_to_virtual) {
+            CoreCoord virtual_coords = it.second;
+            CoreCoord logical_coords = soc_desc.to_logical(virtual_coords);
+
+            // Expect that reverse mapping of virtual coordinates gives the same logical coordinates
+            // using which we got the virtual coordinates.
+            EXPECT_EQ(it.first, logical_coords);
+        }
+    }
+}
+
+// Test equality of physical and translated coordinates for all logical coordinates for any harvesting mask.
+TEST(CoordinateManager, CoordinateManagerBHDRAMPhysicalTranslatedEquality) {
+    const std::size_t max_num_banks_harvested = tt::umd::blackhole::NUM_DRAM_BANKS;
+    const std::size_t num_dram_banks = tt::umd::blackhole::NUM_DRAM_BANKS;
+    const std::size_t num_noc_ports_per_bank = tt::umd::blackhole::NUM_NOC_PORTS_PER_DRAM_BANK;
+
+    tt_SocDescriptor soc_desc = tt_SocDescriptor(test_utils::GetAbsPath("tests/soc_descs/blackhole_140_arch.yaml"));
+
+    for (std::size_t harvesting_mask = 0; harvesting_mask < (1 << max_num_banks_harvested); harvesting_mask++) {
+
+        soc_desc.dram_harvesting(harvesting_mask);
+
+        const std::size_t num_harvested_banks = test_utils::get_num_harvested(harvesting_mask);
+    
+        for (size_t x = 0; x < num_dram_banks - num_harvested_banks; x++) {
+            for (size_t y = 0; y < num_noc_ports_per_bank; y++) {
+                const CoreCoord logical_coords = CoreCoord(x, y, CoreType::TENSIX, CoordSystem::LOGICAL);
+                
+                const CoreCoord physical_coords = soc_desc.to_physical(logical_coords);
+                const CoreCoord translated_coords = soc_desc.to_translated(logical_coords);
+
+                EXPECT_EQ(physical_coords.x, translated_coords.x);
+                EXPECT_EQ(physical_coords.y, translated_coords.y);
+            }
+        }
+    }
 }
