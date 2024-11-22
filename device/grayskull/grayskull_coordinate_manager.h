@@ -18,6 +18,5 @@ public:
                             {tt::umd::grayskull::NUM_DRAM_BANKS, tt::umd::grayskull::NUM_NOC_PORTS_PER_DRAM_BANK}, tt::umd::grayskull::DRAM_CORES, dram_harvesting_mask) {}
 
 protected:
-    CoreCoord translated_to_logical_tensix(const CoreCoord core_coord) override;
-    CoreCoord logical_to_translated_tensix(const CoreCoord core_coord) override;
+    void fill_tensix_logical_to_translated() override;
 };

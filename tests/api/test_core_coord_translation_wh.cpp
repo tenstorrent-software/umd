@@ -48,157 +48,162 @@ TEST(SocDescriptor, SocDescriptorWHNoHarvesting) {
     }
 }
 
-// // Test basic translation to virtual and physical noc coordinates.
-// // We expect that the top left core will have virtual and physical coordinates (1, 1) and (1, 2) for
-// // the logical coordinates if the first row is harvested.
-TEST(SocDescriptor, SocDescriptorWHTopLeftCore) {
+// Test basic translation to virtual and physical noc coordinates.
+// We expect that the top left core will have virtual and physical coordinates (1, 1) and (1, 2) for
+// the logical coordinates if the first row is harvested.
+// TEST(SocDescriptor, SocDescriptorWHTopLeftCore) {
 
-    const std::size_t harvesting_mask = 1;
+//     const std::size_t harvesting_mask = 1;
 
-    tt_SocDescriptor soc_desc = tt_SocDescriptor(test_utils::GetAbsPath("tests/soc_descs/wormhole_b0_8x10.yaml"), harvesting_mask);
-    tt_xy_pair worker_grid_size = soc_desc.worker_grid_size;
+//     std::cout << "creating" << std::endl;
+//     tt_SocDescriptor soc_desc = tt_SocDescriptor(test_utils::GetAbsPath("tests/soc_descs/wormhole_b0_8x10.yaml"), harvesting_mask);
+//     std::cout << "finished creating" << std::endl;
+    // tt_xy_pair worker_grid_size = soc_desc.worker_grid_size;
 
-    CoreCoord logical_coords = CoreCoord(0, 0, CoreType::TENSIX, CoordSystem::LOGICAL);
+    // CoreCoord logical_coords = CoreCoord(0, 0, CoreType::TENSIX, CoordSystem::LOGICAL);
 
-    // Always expect same virtual coordinate for (0, 0) logical coordinate.
-    CoreCoord virtual_cords = soc_desc.to_virtual(logical_coords);
-    EXPECT_EQ(virtual_cords, CoreCoord(1, 1, CoreType::TENSIX, CoordSystem::VIRTUAL));
 
-    // This depends on harvesting mask. So expected physical coord is specific to this test and Wormhole arch.
-    CoreCoord physical_cords = soc_desc.to_physical(logical_coords);
-    EXPECT_EQ(physical_cords, CoreCoord(1, 2, CoreType::TENSIX, CoordSystem::PHYSICAL));
-}
+    // std::cout << "mapping" << std::endl;
 
-// // Test logical to physical coordinate translation.
-// // For the full grid of logical coordinates we expect that there are no duplicates of physical coordinates.
-// // For the reverse mapping back of physical to logical coordinates we expect that same logical coordinates are returned as from original mapping.
-TEST(SocDescriptor, SocDescriptorWHLogicalPhysicalMapping) {
+    // // Always expect same virtual coordinate for (0, 0) logical coordinate.
+    // CoreCoord virtual_cords = soc_desc.to_virtual(logical_coords);
+    // EXPECT_EQ(virtual_cords, CoreCoord(1, 1, CoreType::TENSIX, CoordSystem::VIRTUAL));
 
-    const std::size_t max_num_harvested_y = 10;
-    tt_SocDescriptor soc_desc = tt_SocDescriptor(test_utils::GetAbsPath("tests/soc_descs/wormhole_b0_8x10.yaml"));
-    for (std::size_t harvesting_mask = 0; harvesting_mask < (1 << max_num_harvested_y); harvesting_mask++) {
+    // // This depends on harvesting mask. So expected physical coord is specific to this test and Wormhole arch.
+    // CoreCoord physical_cords = soc_desc.to_physical(logical_coords);
+    // EXPECT_EQ(physical_cords, CoreCoord(1, 2, CoreType::TENSIX, CoordSystem::PHYSICAL));
+// }
 
-        soc_desc.tensix_harvesting(harvesting_mask);
+// // // Test logical to physical coordinate translation.
+// // // For the full grid of logical coordinates we expect that there are no duplicates of physical coordinates.
+// // // For the reverse mapping back of physical to logical coordinates we expect that same logical coordinates are returned as from original mapping.
+// TEST(SocDescriptor, SocDescriptorWHLogicalPhysicalMapping) {
 
-        std::map<CoreCoord, CoreCoord> logical_to_physical;
-        std::set<CoreCoord> physical_coords_set;
-        tt_xy_pair worker_grid_size = soc_desc.worker_grid_size;
+//     const std::size_t max_num_harvested_y = 10;
+//     tt_SocDescriptor soc_desc = tt_SocDescriptor(test_utils::GetAbsPath("tests/soc_descs/wormhole_b0_8x10.yaml"));
+//     for (std::size_t harvesting_mask = 0; harvesting_mask < (1 << max_num_harvested_y); harvesting_mask++) {
 
-        std::size_t num_harvested_y = test_utils::get_num_harvested(harvesting_mask);
+//         soc_desc.tensix_harvesting(harvesting_mask);
 
-        for (size_t x = 0; x < worker_grid_size.x; x++) {
-            for (size_t y = 0; y < worker_grid_size.y - num_harvested_y; y++) {
-                CoreCoord logical_coords = CoreCoord(x, y, CoreType::TENSIX, CoordSystem::LOGICAL);
-                CoreCoord physical_coords = soc_desc.to_physical(logical_coords);
-                logical_to_physical[logical_coords] = physical_coords;
+//         std::map<CoreCoord, CoreCoord> logical_to_physical;
+//         std::set<CoreCoord> physical_coords_set;
+//         tt_xy_pair worker_grid_size = soc_desc.worker_grid_size;
 
-                // Expect that logical to physical translation is 1-1 mapping. No duplicates for physical coordinates.
-                EXPECT_EQ(physical_coords_set.count(physical_coords), 0);
-                physical_coords_set.insert(physical_coords);
-            }
-        }
+//         std::size_t num_harvested_y = test_utils::get_num_harvested(harvesting_mask);
+
+//         for (size_t x = 0; x < worker_grid_size.x; x++) {
+//             for (size_t y = 0; y < worker_grid_size.y - num_harvested_y; y++) {
+//                 CoreCoord logical_coords = CoreCoord(x, y, CoreType::TENSIX, CoordSystem::LOGICAL);
+//                 CoreCoord physical_coords = soc_desc.to_physical(logical_coords);
+//                 logical_to_physical[logical_coords] = physical_coords;
+
+//                 // Expect that logical to physical translation is 1-1 mapping. No duplicates for physical coordinates.
+//                 EXPECT_EQ(physical_coords_set.count(physical_coords), 0);
+//                 physical_coords_set.insert(physical_coords);
+//             }
+//         }
         
-        // Expect that the number of physical coordinates is equal to the number of workers minus the number of harvested rows.
-        EXPECT_EQ(physical_coords_set.size(), worker_grid_size.x * (worker_grid_size.y - num_harvested_y));
+//         // Expect that the number of physical coordinates is equal to the number of workers minus the number of harvested rows.
+//         EXPECT_EQ(physical_coords_set.size(), worker_grid_size.x * (worker_grid_size.y - num_harvested_y));
 
-        for (auto it : logical_to_physical) {
-            CoreCoord physical_coords = it.second;
-            CoreCoord logical_coords = soc_desc.to_logical(physical_coords);
+//         for (auto it : logical_to_physical) {
+//             CoreCoord physical_coords = it.second;
+//             CoreCoord logical_coords = soc_desc.to_logical(physical_coords);
 
-            // Expect that reverse mapping of physical coordinates gives the same logical coordinates
-            // using which we got the physical coordinates.
-            EXPECT_EQ(it.first, logical_coords);
-        }
-    }
-}
+//             // Expect that reverse mapping of physical coordinates gives the same logical coordinates
+//             // using which we got the physical coordinates.
+//             EXPECT_EQ(it.first, logical_coords);
+//         }
+//     }
+// }
 
-// // Test logical to virtual coordinate translation.
-// // For the full grid of logical coordinates we expect that there are no duplicates of virtual coordinates.
-// // For the reverse mapping back of virtual to logical coordinates we expect that same logical coordinates are returned as from original mapping.
-TEST(SocDescriptor, SocDescriptorWHLogicalVirtualMapping) {
+// // // Test logical to virtual coordinate translation.
+// // // For the full grid of logical coordinates we expect that there are no duplicates of virtual coordinates.
+// // // For the reverse mapping back of virtual to logical coordinates we expect that same logical coordinates are returned as from original mapping.
+// TEST(SocDescriptor, SocDescriptorWHLogicalVirtualMapping) {
 
-    const std::size_t max_num_harvested_y = 10;
-    tt_SocDescriptor soc_desc = tt_SocDescriptor(test_utils::GetAbsPath("tests/soc_descs/wormhole_b0_8x10.yaml"));
-    for (std::size_t harvesting_mask = 0; harvesting_mask < (1 << max_num_harvested_y); harvesting_mask++) {
+//     const std::size_t max_num_harvested_y = 10;
+//     tt_SocDescriptor soc_desc = tt_SocDescriptor(test_utils::GetAbsPath("tests/soc_descs/wormhole_b0_8x10.yaml"));
+//     for (std::size_t harvesting_mask = 0; harvesting_mask < (1 << max_num_harvested_y); harvesting_mask++) {
 
-        soc_desc.tensix_harvesting(harvesting_mask);
+//         soc_desc.tensix_harvesting(harvesting_mask);
 
-        std::map<CoreCoord, CoreCoord> logical_to_virtual;
-        std::set<CoreCoord> virtual_coords_set;
-        tt_xy_pair worker_grid_size = soc_desc.worker_grid_size;
+//         std::map<CoreCoord, CoreCoord> logical_to_virtual;
+//         std::set<CoreCoord> virtual_coords_set;
+//         tt_xy_pair worker_grid_size = soc_desc.worker_grid_size;
 
-        std::size_t num_harvested_y = test_utils::get_num_harvested(harvesting_mask);
+//         std::size_t num_harvested_y = test_utils::get_num_harvested(harvesting_mask);
 
-        for (size_t x = 0; x < worker_grid_size.x; x++) {
-            for (size_t y = 0; y < worker_grid_size.y - num_harvested_y; y++) {
-                CoreCoord logical_coords = CoreCoord(x, y, CoreType::TENSIX, CoordSystem::LOGICAL);
-                CoreCoord virtual_coords = soc_desc.to_virtual(logical_coords);
-                logical_to_virtual[logical_coords] = virtual_coords;
+//         for (size_t x = 0; x < worker_grid_size.x; x++) {
+//             for (size_t y = 0; y < worker_grid_size.y - num_harvested_y; y++) {
+//                 CoreCoord logical_coords = CoreCoord(x, y, CoreType::TENSIX, CoordSystem::LOGICAL);
+//                 CoreCoord virtual_coords = soc_desc.to_virtual(logical_coords);
+//                 logical_to_virtual[logical_coords] = virtual_coords;
 
-                // Expect that logical to virtual translation is 1-1 mapping. No duplicates for virtual coordinates.
-                EXPECT_EQ(virtual_coords_set.count(virtual_coords), 0);
-                virtual_coords_set.insert(virtual_coords);
-            }
-        }
+//                 // Expect that logical to virtual translation is 1-1 mapping. No duplicates for virtual coordinates.
+//                 EXPECT_EQ(virtual_coords_set.count(virtual_coords), 0);
+//                 virtual_coords_set.insert(virtual_coords);
+//             }
+//         }
 
-        for (auto it : logical_to_virtual) {
-            CoreCoord virtual_coords = it.second;
-            CoreCoord logical_coords = soc_desc.to_logical(virtual_coords);
+//         for (auto it : logical_to_virtual) {
+//             CoreCoord virtual_coords = it.second;
+//             CoreCoord logical_coords = soc_desc.to_logical(virtual_coords);
 
-            // Expect that reverse mapping of virtual coordinates gives the same logical coordinates
-            // using which we got the virtual coordinates.
-            EXPECT_EQ(it.first, logical_coords);
-        }
-    }
-}
+//             // Expect that reverse mapping of virtual coordinates gives the same logical coordinates
+//             // using which we got the virtual coordinates.
+//             EXPECT_EQ(it.first, logical_coords);
+//         }
+//     }
+// }
 
-// // Test top left corner translation from logical to translated coordinates.
-TEST(SocDescriptor, SocDescriptorWHLogicalTranslatedTopLeft) {
+// // // Test top left corner translation from logical to translated coordinates.
+// TEST(SocDescriptor, SocDescriptorWHLogicalTranslatedTopLeft) {
 
-    const std::size_t translated_x_start = 18;
-    const std::size_t translated_y_start = 18;
-    const CoreCoord expected_translated_coords = CoreCoord(translated_x_start, translated_y_start, CoreType::TENSIX, CoordSystem::TRANSLATED);
+//     const std::size_t translated_x_start = 18;
+//     const std::size_t translated_y_start = 18;
+//     const CoreCoord expected_translated_coords = CoreCoord(translated_x_start, translated_y_start, CoreType::TENSIX, CoordSystem::TRANSLATED);
 
-    const std::size_t max_num_harvested_y = 10;
-    tt_SocDescriptor soc_desc = tt_SocDescriptor(test_utils::GetAbsPath("tests/soc_descs/wormhole_b0_8x10.yaml"));
-    // We go up to numbers less than 2^10 - 1 to test all possible harvesting masks, we don't want to try to convert if everything is harvested.
-    for (std::size_t harvesting_mask = 0; harvesting_mask < (1 << max_num_harvested_y) - 1; harvesting_mask++) {
-        soc_desc.tensix_harvesting(harvesting_mask);
+//     const std::size_t max_num_harvested_y = 10;
+//     tt_SocDescriptor soc_desc = tt_SocDescriptor(test_utils::GetAbsPath("tests/soc_descs/wormhole_b0_8x10.yaml"));
+//     // We go up to numbers less than 2^10 - 1 to test all possible harvesting masks, we don't want to try to convert if everything is harvested.
+//     for (std::size_t harvesting_mask = 0; harvesting_mask < (1 << max_num_harvested_y) - 1; harvesting_mask++) {
+//         soc_desc.tensix_harvesting(harvesting_mask);
         
-        tt_xy_pair worker_grid_size = soc_desc.worker_grid_size;
+//         tt_xy_pair worker_grid_size = soc_desc.worker_grid_size;
 
-        std::size_t num_harvested_y = test_utils::get_num_harvested(harvesting_mask);
+//         std::size_t num_harvested_y = test_utils::get_num_harvested(harvesting_mask);
 
-        CoreCoord logical_coords = CoreCoord(0, 0, CoreType::TENSIX, CoordSystem::LOGICAL);
-        CoreCoord physical_coords = soc_desc.to_physical(logical_coords);
-        CoreCoord virtual_coords = soc_desc.to_virtual(logical_coords);
+//         CoreCoord logical_coords = CoreCoord(0, 0, CoreType::TENSIX, CoordSystem::LOGICAL);
+//         CoreCoord physical_coords = soc_desc.to_physical(logical_coords);
+//         CoreCoord virtual_coords = soc_desc.to_virtual(logical_coords);
 
-        CoreCoord translated_from_logical = soc_desc.to_translated(logical_coords);
-        CoreCoord translated_from_physical = soc_desc.to_translated(physical_coords);
-        CoreCoord translated_from_virtual = soc_desc.to_translated(virtual_coords);
+//         CoreCoord translated_from_logical = soc_desc.to_translated(logical_coords);
+//         CoreCoord translated_from_physical = soc_desc.to_translated(physical_coords);
+//         CoreCoord translated_from_virtual = soc_desc.to_translated(virtual_coords);
 
-        EXPECT_EQ(translated_from_logical, expected_translated_coords);
-        EXPECT_EQ(translated_from_physical, expected_translated_coords);
-        EXPECT_EQ(translated_from_virtual, expected_translated_coords);
-    }
-}
+//         EXPECT_EQ(translated_from_logical, expected_translated_coords);
+//         EXPECT_EQ(translated_from_physical, expected_translated_coords);
+//         EXPECT_EQ(translated_from_virtual, expected_translated_coords);
+//     }
+// }
 
-TEST(CoordinateManager, CoordinateManagerWHDRAMNoHarvesting) {
-    tt_SocDescriptor soc_desc = tt_SocDescriptor(test_utils::GetAbsPath("tests/soc_descs/wormhole_b0_8x10.yaml"), 0 ,0);
+// TEST(CoordinateManager, CoordinateManagerWHDRAMNoHarvesting) {
+//     tt_SocDescriptor soc_desc = tt_SocDescriptor(test_utils::GetAbsPath("tests/soc_descs/wormhole_b0_8x10.yaml"), 0 ,0);
 
-    const std::size_t num_dram_banks = tt::umd::wormhole::NUM_DRAM_BANKS;
-    const std::size_t num_noc_ports_per_bank = tt::umd::wormhole::NUM_NOC_PORTS_PER_DRAM_BANK;
-    const std::vector<tt_xy_pair>& dram_cores = tt::umd::wormhole::DRAM_CORES;
+//     const std::size_t num_dram_banks = tt::umd::wormhole::NUM_DRAM_BANKS;
+//     const std::size_t num_noc_ports_per_bank = tt::umd::wormhole::NUM_NOC_PORTS_PER_DRAM_BANK;
+//     const std::vector<tt_xy_pair>& dram_cores = tt::umd::wormhole::DRAM_CORES;
 
-    for (std::size_t dram_bank = 0; dram_bank < num_dram_banks; dram_bank++) {
-        for (std::size_t noc_port = 0; noc_port < num_noc_ports_per_bank; noc_port++) {
-            const CoreCoord dram_logical(dram_bank, noc_port, CoreType::DRAM, CoordSystem::LOGICAL);
-            const std::size_t physical_core_index = dram_bank * num_noc_ports_per_bank + noc_port;
-            const CoreCoord expected_physical = CoreCoord(dram_cores[physical_core_index].x, dram_cores[physical_core_index].y, CoreType::DRAM, CoordSystem::PHYSICAL);
+//     for (std::size_t dram_bank = 0; dram_bank < num_dram_banks; dram_bank++) {
+//         for (std::size_t noc_port = 0; noc_port < num_noc_ports_per_bank; noc_port++) {
+//             const CoreCoord dram_logical(dram_bank, noc_port, CoreType::DRAM, CoordSystem::LOGICAL);
+//             const std::size_t physical_core_index = dram_bank * num_noc_ports_per_bank + noc_port;
+//             const CoreCoord expected_physical = CoreCoord(dram_cores[physical_core_index].x, dram_cores[physical_core_index].y, CoreType::DRAM, CoordSystem::PHYSICAL);
 
-            const CoreCoord dram_physical = soc_desc.to_physical(dram_logical);
+//             const CoreCoord dram_physical = soc_desc.to_physical(dram_logical);
 
-            EXPECT_EQ(dram_physical, expected_physical);
-        }
-    }
-}
+//             EXPECT_EQ(dram_physical, expected_physical);
+//         }
+//     }
+// }

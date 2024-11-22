@@ -5,23 +5,20 @@
  */
 #include "wormhole_coordinate_manager.h"
 
-std::set<std::size_t> WormholeCoordinateManager::get_y_coordinates_to_harvest(std::size_t harvesting_mask) {
-    std::set<std::size_t> y_to_harvest;
-    std::size_t logical_y = 0;
-    while (harvesting_mask > 0) {
-        if (harvesting_mask & 1) {
-            y_to_harvest.insert(logical_y);
-        }
-        logical_y++;
-        harvesting_mask >>= 1;
+void WormholeCoordinateManager::fill_tensix_logical_to_translated() {
+    std::size_t num_harvested_y = __builtin_popcount(CoordinateManager::tensix_harvesting_mask);
+
+    CoordinateManager::tensix_logical_to_translated.resize(CoordinateManager::tensix_grid_size.x);
+    for (auto& vec : CoordinateManager::tensix_logical_to_translated) {
+        vec.resize(CoordinateManager::tensix_grid_size.y - num_harvested_y);
     }
-    return y_to_harvest;
-}
 
-CoreCoord WormholeCoordinateManager::translated_to_logical_tensix(const CoreCoord core_coord) {
-    return CoreCoord{core_coord.x - translated_coordinate_start_x, core_coord.y - translated_coordinate_start_y, CoreType::TENSIX, CoordSystem::LOGICAL};
-}
-
-CoreCoord WormholeCoordinateManager::logical_to_translated_tensix(const CoreCoord core_coord) {
-    return CoreCoord{core_coord.x + translated_coordinate_start_x, core_coord.y + translated_coordinate_start_y, CoreType::TENSIX, CoordSystem::TRANSLATED};
+    for (std::size_t x = 0; x < CoordinateManager::tensix_grid_size.x; x++) {
+        for (std::size_t y = 0; y < CoordinateManager::tensix_grid_size.y - num_harvested_y; y++) {
+            const std::size_t translated_x = x + translated_coordinate_start_x;
+            const std::size_t translated_y = y + translated_coordinate_start_y;
+            CoordinateManager::tensix_logical_to_translated[x][y] = CoreCoord(translated_x, translated_y, CoreType::TENSIX, CoordSystem::TRANSLATED);
+            CoordinateManager::tensix_translated_to_logical[tt_xy_pair(translated_x, translated_y)] = CoreCoord(x, y, CoreType::TENSIX, CoordSystem::LOGICAL);
+        }
+    }
 }

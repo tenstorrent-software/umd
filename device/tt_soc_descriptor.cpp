@@ -220,6 +220,7 @@ tt_SocDescriptor::tt_SocDescriptor(std::string device_descriptor_path, const std
     create_coordinate_manager(tensix_harvesting_mask, dram_harvesting_mask);
     tensix_harvesting(tensix_harvesting_mask);
     dram_harvesting(dram_harvesting_mask);
+    std::cout << "tt soc desc finished dram harvesting" << std::endl;
 }
 
 int tt_SocDescriptor::get_num_dram_channels() const {

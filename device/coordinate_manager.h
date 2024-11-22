@@ -20,7 +20,7 @@ public:
     CoordinateManager(
         const tt_xy_pair& worker_grid_size, const std::vector<tt_xy_pair>& workers, const std::size_t tensix_harvesting_mask,
         const tt_xy_pair& dram_grid_size, const std::vector<tt_xy_pair>& dram_cores, const std::size_t dram_harvesting_mask)
-        : worker_grid_size(worker_grid_size), workers(workers), tensix_harvesting_mask(tensix_harvesting_mask),
+        : tensix_grid_size(worker_grid_size), tensix_cores(workers), tensix_harvesting_mask(tensix_harvesting_mask),
           dram_grid_size(dram_grid_size), dram_cores(dram_cores), dram_harvesting_mask(dram_harvesting_mask)
         {}
 
@@ -48,49 +48,33 @@ protected:
     void clear_tensix_harvesting_structures();
     void clear_dram_harvesting_structures();
 
-    virtual std::set<std::size_t> get_x_coordinates_to_harvest(std::size_t harvesting_mask);
-    virtual std::set<std::size_t> get_y_coordinates_to_harvest(std::size_t harvesting_mask);
+    // TODO(pjanevski): this should be abstract function.
+    virtual void fill_tensix_logical_to_translated();
 
-    virtual void fill_logical_to_physical_mapping(
-        const std::set<size_t>& x_to_harvest, const std::set<size_t>& y_to_harvest,
-        const std::set<size_t>& physical_x_unharvested, const std::set<size_t>& physical_y_unharvested);
-    virtual void fill_logical_to_virtual_mapping(const std::set<size_t>& physical_x_unharvested, const std::set<size_t>& physical_y_unharvested);
-    
-    CoreCoord to_tensix_physical(const CoreCoord core_coord);
-    CoreCoord to_tensix_logical(const CoreCoord core_coord);
-    CoreCoord to_tensix_virtual(const CoreCoord core_coord);
-    CoreCoord to_tensix_translated(const CoreCoord core_coord);
+    std::vector<std::vector<CoreCoord>> tensix_logical_to_translated;
+    std::vector<std::vector<CoreCoord>> tensix_logical_to_virtual;
+    std::vector<std::vector<CoreCoord>> tensix_logical_to_physical;
+    std::map<tt_xy_pair, CoreCoord> tensix_physical_to_logical;
+    std::map<tt_xy_pair, CoreCoord> tensix_virtual_to_logical;
+    std::map<tt_xy_pair, CoreCoord> tensix_translated_to_logical;
 
-    CoreCoord to_dram_physical(const CoreCoord core_coord);
-    CoreCoord to_dram_logical(const CoreCoord core_coord);
-    CoreCoord to_dram_virtual(const CoreCoord core_coord);
-    CoreCoord to_dram_translated(const CoreCoord core_coord);
+    std::vector<std::vector<CoreCoord>> dram_logical_to_translated;
+    std::vector<std::vector<CoreCoord>> dram_logical_to_virtual;
+    std::vector<std::vector<CoreCoord>> dram_logical_to_physical;
+    std::map<tt_xy_pair, CoreCoord> dram_physical_to_logical;
+    std::map<tt_xy_pair, CoreCoord> dram_virtual_to_logical;
+    std::map<tt_xy_pair, CoreCoord> dram_translated_to_logical;
 
-    // TODO(pjanevski): this should be abstract functions
-    // Making deep copy of SocDescriptor is harded if these are abstract
-    virtual CoreCoord translated_to_logical_tensix(const CoreCoord core_coord);
-    virtual CoreCoord logical_to_translated_tensix(const CoreCoord core_coord);
+    std::vector<std::vector<CoreCoord>>& get_logical_to_translated(CoreType core_type);
+    std::vector<std::vector<CoreCoord>>& get_logical_to_virtual(CoreType core_type);
+    std::vector<std::vector<CoreCoord>>& get_logical_to_physical(CoreType core_type);
 
-    std::map<std::size_t, std::size_t> physical_y_to_logical_y;
-    std::map<std::size_t, std::size_t> physical_x_to_logical_x;
+    std::map<tt_xy_pair, CoreCoord>& get_physical_to_logical(CoreType core_type);
+    std::map<tt_xy_pair, CoreCoord>& get_virtual_to_logical(CoreType core_type);
+    std::map<tt_xy_pair, CoreCoord>& get_translated_to_logical(CoreType core_type);
 
-    std::vector<std::size_t> logical_y_to_physical_y;
-    std::vector<std::size_t> logical_x_to_physical_x;
-
-    std::vector<std::size_t> logical_y_to_virtual_y;
-    std::vector<std::size_t> logical_x_to_virtual_x;
-
-    std::map<std::size_t, std::size_t> virtual_y_to_logical_y;
-    std::map<std::size_t, std::size_t> virtual_x_to_logical_x;
-
-    std::map<tt_xy_pair, tt_xy_pair> dram_logical_to_virtual;
-    std::map<tt_xy_pair, tt_xy_pair> dram_logical_to_physical;
-
-    std::map<tt_xy_pair, tt_xy_pair> dram_virtual_to_logical;
-    std::map<tt_xy_pair, tt_xy_pair> dram_physical_to_logical;
-
-    const tt_xy_pair worker_grid_size;
-    const std::vector<tt_xy_pair>& workers;
+    const tt_xy_pair tensix_grid_size;
+    const std::vector<tt_xy_pair>& tensix_cores;
     const std::size_t tensix_harvesting_mask;
 
     // TODO(pjanevski): put const for this attributes

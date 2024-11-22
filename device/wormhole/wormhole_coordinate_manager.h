@@ -16,10 +16,7 @@ public:
         : CoordinateManager(worker_grid_size, workers, tensix_harvesting_mask,
                             {tt::umd::wormhole::NUM_DRAM_BANKS, tt::umd::wormhole::NUM_NOC_PORTS_PER_DRAM_BANK}, tt::umd::wormhole::DRAM_CORES, dram_harvesting_mask) {}
 protected:
-    CoreCoord translated_to_logical_tensix(const CoreCoord core_coord) override;
-    CoreCoord logical_to_translated_tensix(const CoreCoord core_coord) override;
-    
-    std::set<std::size_t> get_y_coordinates_to_harvest(std::size_t harvesting_mask) override;
+    virtual void fill_tensix_logical_to_translated();
 
 private:
     static const std::size_t translated_coordinate_start_x = 18;

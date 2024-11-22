@@ -12,192 +12,140 @@
 #include "tt_core_coordinates.h"
 #include "device/tt_xy_pair.h"
 
-CoreCoord CoordinateManager::to_tensix_physical(const CoreCoord core_coord) {
-    switch (core_coord.coord_system) {
-        case CoordSystem::LOGICAL:
-            return CoreCoord{logical_x_to_physical_x[core_coord.x], logical_y_to_physical_y[core_coord.y], CoreType::TENSIX, CoordSystem::PHYSICAL};
-        case CoordSystem::PHYSICAL:
-            return core_coord;
-        case CoordSystem::VIRTUAL:
-            return CoreCoord{logical_x_to_physical_x[virtual_x_to_logical_x[core_coord.x]], logical_y_to_physical_y[virtual_y_to_logical_y[core_coord.y]], CoreType::TENSIX, CoordSystem::PHYSICAL};
-        case CoordSystem::TRANSLATED:
-            return to_tensix_physical(translated_to_logical_tensix(core_coord));
+std::vector<std::vector<CoreCoord>>& CoordinateManager::get_logical_to_translated(CoreType core_type) {
+    switch (core_type) {
+        case CoreType::TENSIX:
+            return tensix_logical_to_translated;
+        case CoreType::DRAM:
+            return dram_logical_to_translated;
+        default:
+            throw std::runtime_error("Core type is not supported for getting logical to translated mapping");
     }
 }
 
-CoreCoord CoordinateManager::to_tensix_virtual(const CoreCoord core_coord) {
-    switch (core_coord.coord_system) {
-        case CoordSystem::LOGICAL:
-            return CoreCoord{logical_x_to_virtual_x[core_coord.x], logical_y_to_virtual_y[core_coord.y], CoreType::TENSIX, CoordSystem::VIRTUAL};
-        case CoordSystem::PHYSICAL:
-            return CoreCoord{virtual_x_to_logical_x[core_coord.x], virtual_y_to_logical_y[core_coord.y], CoreType::TENSIX, CoordSystem::VIRTUAL};
-        case CoordSystem::VIRTUAL:
-            return core_coord;
-        case CoordSystem::TRANSLATED:
-            return to_tensix_virtual(to_tensix_logical(core_coord));
+std::vector<std::vector<CoreCoord>>& CoordinateManager::get_logical_to_virtual(CoreType core_type) {
+    switch (core_type) {
+        case CoreType::TENSIX:
+            return tensix_logical_to_virtual;
+        case CoreType::DRAM:
+            return dram_logical_to_virtual;
+        default:
+            throw std::runtime_error("Core type is not supported for getting logical to virtual mapping");
     }
 }
 
-CoreCoord CoordinateManager::to_tensix_logical(const CoreCoord core_coord) {
-    switch (core_coord.coord_system) {
-        case CoordSystem::LOGICAL:
-            return core_coord;
-        case CoordSystem::PHYSICAL:
-            return CoreCoord{physical_x_to_logical_x[core_coord.x], physical_y_to_logical_y[core_coord.y], CoreType::TENSIX, CoordSystem::LOGICAL};
-        case CoordSystem::VIRTUAL:
-            return CoreCoord{virtual_x_to_logical_x[core_coord.x], virtual_y_to_logical_y[core_coord.y], CoreType::TENSIX, CoordSystem::LOGICAL};
-        case CoordSystem::TRANSLATED:
-            return translated_to_logical_tensix(core_coord);
+std::vector<std::vector<CoreCoord>>& CoordinateManager::get_logical_to_physical(CoreType core_type) {
+    switch (core_type) {
+        case CoreType::TENSIX:
+            return tensix_logical_to_physical;
+        case CoreType::DRAM:
+            return dram_logical_to_physical;
+        default:
+            throw std::runtime_error("Core type is not supported for getting logical to physical mapping");
     }
 }
 
-CoreCoord CoordinateManager::to_tensix_translated(const CoreCoord core_coord) {
-    switch (core_coord.coord_system) {
-        case CoordSystem::LOGICAL:
-            return logical_to_translated_tensix(core_coord);
-        case CoordSystem::PHYSICAL:
-            return to_translated(to_tensix_logical(core_coord));
-        case CoordSystem::VIRTUAL:
-            return to_translated(to_tensix_logical(core_coord));
-        case CoordSystem::TRANSLATED:
-            return core_coord;
+std::map<tt_xy_pair, CoreCoord>& CoordinateManager::get_physical_to_logical(CoreType core_type) {
+    switch (core_type) {
+        case CoreType::TENSIX:
+            return tensix_physical_to_logical;
+        case CoreType::DRAM:
+            return dram_physical_to_logical;
+        default:
+            throw std::runtime_error("Core type is not supported for getting physical to logical mapping");
     }
 }
 
-CoreCoord CoordinateManager::to_dram_physical(const CoreCoord core_coord) {
-    switch (core_coord.coord_system) {
-        case CoordSystem::LOGICAL: {
-            tt_xy_pair physical_pair = dram_logical_to_physical.at({core_coord.x, core_coord.y});
-            return CoreCoord(physical_pair.x, physical_pair.y, CoreType::DRAM, CoordSystem::PHYSICAL);
-        }
-        case CoordSystem::VIRTUAL:
-            return to_dram_physical(to_logical(core_coord));
-        case CoordSystem::PHYSICAL:
-            return core_coord;
-        case CoordSystem::TRANSLATED: {
-            CoreCoord physical_coord = core_coord;
-            physical_coord.coord_system = CoordSystem::PHYSICAL;
-            return physical_coord; 
-        }  
+std::map<tt_xy_pair, CoreCoord>& CoordinateManager::get_virtual_to_logical(CoreType core_type) {
+    switch (core_type) {
+        case CoreType::TENSIX:
+            return tensix_virtual_to_logical;
+        case CoreType::DRAM:
+            return dram_virtual_to_logical;
+        default:
+            throw std::runtime_error("Core type is not supported for getting virtual to logical mapping");
     }
 }
 
-CoreCoord CoordinateManager::to_dram_logical(const CoreCoord core_coord) {
-    switch (core_coord.coord_system) {
-        case CoordSystem::LOGICAL:
-            return core_coord;
-        case CoordSystem::PHYSICAL: {
-            tt_xy_pair logical_pair = dram_physical_to_logical.at({core_coord.x, core_coord.y});
-            return CoreCoord(logical_pair.x, logical_pair.y, CoreType::DRAM, CoordSystem::LOGICAL);
-        }
-        case CoordSystem::VIRTUAL: {
-            tt_xy_pair virtual_pair = dram_virtual_to_logical.at({core_coord.x, core_coord.y});
-            return CoreCoord(virtual_pair.x, virtual_pair.y, CoreType::DRAM, CoordSystem::LOGICAL);
-        }
-        case CoordSystem::TRANSLATED:
-            return to_logical(to_physical(core_coord));
-    }
-}
-
-CoreCoord CoordinateManager::to_dram_virtual(const CoreCoord core_coord) {
-    switch (core_coord.coord_system) {
-        case CoordSystem::LOGICAL: {
-            tt_xy_pair virtual_pair = dram_logical_to_virtual.at({core_coord.x, core_coord.y});
-            return CoreCoord(virtual_pair.x, virtual_pair.y, CoreType::DRAM, CoordSystem::VIRTUAL);
-        }
-        case CoordSystem::TRANSLATED:
-        case CoordSystem::PHYSICAL: {
-            return to_virtual(to_logical(core_coord));
-        }
-        case CoordSystem::VIRTUAL:
-            return core_coord;
-    }
-}
-
-CoreCoord CoordinateManager::to_dram_translated(const CoreCoord core_coord) {
-    switch (core_coord.coord_system) {
-        case CoordSystem::LOGICAL:
-        case CoordSystem::VIRTUAL: {
-            return to_dram_translated(to_dram_physical(core_coord));
-        }
-        case CoordSystem::PHYSICAL: {
-            return CoreCoord(core_coord.x, core_coord.y, CoreType::DRAM, CoordSystem::TRANSLATED);
-        }
-        case CoordSystem::TRANSLATED:
-            return core_coord;
+std::map<tt_xy_pair, CoreCoord>& CoordinateManager::get_translated_to_logical(CoreType core_type) {
+    switch (core_type) {
+        case CoreType::TENSIX:
+            return tensix_translated_to_logical;
+        case CoreType::DRAM:
+            return dram_translated_to_logical;
+        default:
+            throw std::runtime_error("Core type is not supported for getting translated to logical mapping");
     }
 }
 
 CoreCoord CoordinateManager::to_physical(const CoreCoord core_coord) {
-    switch (core_coord.core_type) {
-        case CoreType::TENSIX:
-            return to_tensix_physical(core_coord);
-        case CoreType::DRAM:
-            return to_dram_physical(core_coord);
-        case CoreType::ARC:
-        case CoreType::ACTIVE_ETH:
-        case CoreType::IDLE_ETH:
-        case CoreType::PCIE:
-        case CoreType::ROUTER_ONLY:
-            throw std::runtime_error("Core type is not supported for conversion to physical coordinates");
+    switch (core_coord.coord_system) {
+        case CoordSystem::PHYSICAL:
+            return core_coord;
+        case CoordSystem::VIRTUAL:
+        case CoordSystem::TRANSLATED:
+            return to_physical(to_logical(core_coord));
     }
-    throw std::runtime_error("Invalid coordinate system");
+    
+    // Coord system is surely logical.
+    auto& logical_mapping = get_logical_to_physical(core_coord.core_type);
+    return logical_mapping[core_coord.x][core_coord.y]; 
 }
 
 CoreCoord CoordinateManager::to_virtual(const CoreCoord core_coord) {
-    switch (core_coord.core_type) {
-        case CoreType::TENSIX:
-            return to_tensix_virtual(core_coord);
-        case CoreType::DRAM:
-            return to_dram_virtual(core_coord);
-        case CoreType::ARC:
-        case CoreType::ACTIVE_ETH:
-        case CoreType::IDLE_ETH:
-        case CoreType::PCIE:
-        case CoreType::ROUTER_ONLY:
-            throw std::runtime_error("Core type is not supported for conversion to virtual coordinates");
+    switch (core_coord.coord_system) {
+        case CoordSystem::TRANSLATED:
+        case CoordSystem::PHYSICAL:
+            return to_virtual(to_logical(core_coord));
+        case CoordSystem::VIRTUAL:
+            return core_coord;
     }
+
+    // Coord system is surely logical.
+    auto& logical_mapping = get_logical_to_virtual(core_coord.core_type);
+    return logical_mapping[core_coord.x][core_coord.y];
 }
 
 CoreCoord CoordinateManager::to_logical(const CoreCoord core_coord) {
-    switch (core_coord.core_type) {
-        case CoreType::TENSIX:
-            return to_tensix_logical(core_coord);
-        case CoreType::DRAM:
-            return to_dram_logical(core_coord);
-        case CoreType::ARC:
-        case CoreType::ACTIVE_ETH:
-        case CoreType::IDLE_ETH:
-        case CoreType::PCIE:
-        case CoreType::ROUTER_ONLY:
-            throw std::runtime_error("Core type is not supported for conversion to logical coordinates");
+    switch (core_coord.coord_system) {
+        case CoordSystem::LOGICAL:
+            return core_coord;
+        case CoordSystem::PHYSICAL: {
+            auto& physical_mapping = get_physical_to_logical(core_coord.core_type);
+            return physical_mapping[{core_coord.x, core_coord.y}];
+        }
+        case CoordSystem::VIRTUAL: {
+            auto& virtual_mapping = get_virtual_to_logical(core_coord.core_type);
+            return virtual_mapping[{core_coord.x, core_coord.y}];
+        }
+        case CoordSystem::TRANSLATED: {
+            auto& translated_mapping = get_logical_to_translated(core_coord.core_type);
+            return translated_mapping[core_coord.x][core_coord.y];
+        }
     }
 }
 
 CoreCoord CoordinateManager::to_translated(const CoreCoord core_coord) {
-    switch (core_coord.core_type) {
-        case CoreType::TENSIX:
-            return to_tensix_translated(core_coord);
-        case CoreType::DRAM:
-            return to_dram_translated(core_coord);
-        case CoreType::ARC:
-        case CoreType::ACTIVE_ETH:
-        case CoreType::IDLE_ETH:
-        case CoreType::PCIE:
-        case CoreType::ROUTER_ONLY:
-            throw std::runtime_error("Core type is not supported for conversion to translated coordinates");
+    switch (core_coord.coord_system) {
+        case CoordSystem::PHYSICAL:
+        case CoordSystem::VIRTUAL:
+            return to_translated(to_logical(core_coord));
+        case CoordSystem::TRANSLATED:
+            return core_coord;
     }
+
+    // Coord system is surely logical.
+    auto& logical_mapping = get_logical_to_translated(core_coord.core_type);
+    return logical_mapping[core_coord.x][core_coord.y];
 }
 
 void CoordinateManager::clear_tensix_harvesting_structures() {
-    logical_x_to_physical_x.clear();
-    logical_y_to_physical_y.clear();
-    logical_x_to_virtual_x.clear();
-    logical_y_to_virtual_y.clear();
-    physical_x_to_logical_x.clear();
-    physical_y_to_logical_y.clear();
-    virtual_x_to_logical_x.clear();
-    virtual_y_to_logical_y.clear();
+    tensix_logical_to_physical.clear();
+    tensix_logical_to_virtual.clear();
+    tensix_physical_to_logical.clear();
+    tensix_virtual_to_logical.clear();
+    tensix_logical_to_translated.clear();
+    tensix_translated_to_logical.clear();
 }
 
 void CoordinateManager::clear_dram_harvesting_structures() {
@@ -205,115 +153,86 @@ void CoordinateManager::clear_dram_harvesting_structures() {
     dram_logical_to_physical.clear();
     dram_virtual_to_logical.clear();
     dram_physical_to_logical.clear();
+    dram_logical_to_translated.clear();
+    dram_translated_to_logical.clear();
 }
-
-std::set<std::size_t> CoordinateManager::get_x_coordinates_to_harvest(std::size_t harvesting_mask) {
-    return {};
-}
-
-std::set<std::size_t> CoordinateManager::get_y_coordinates_to_harvest(std::size_t harvesting_mask) {
-    return {};
-}
-
+#include <iostream>
 void CoordinateManager::tensix_harvesting(const std::size_t harvesting_mask) {
-    clear_tensix_harvesting_structures();
+    // clear_tensix_harvesting_structures();
 
-    std::set<size_t> physical_x_unharvested;
-    std::set<size_t> physical_y_unharvested;
-    for (auto core : workers) {
-        physical_x_unharvested.insert(core.x);
-        physical_y_unharvested.insert(core.y);
-    }
+    // std::size_t num_harvested_y = __builtin_popcount(harvesting_mask);
+    // std::size_t grid_size_x = tensix_grid_size.x;
+    // std::size_t grid_size_y = tensix_grid_size.y;
+    
+    // tensix_logical_to_physical.resize(grid_size_x);
+    // for (auto& vec : tensix_logical_to_physical) {
+    //     vec.resize(grid_size_y - num_harvested_y);
+    // }
 
-    std::set<std::size_t> x_coordinates_to_harvest = get_x_coordinates_to_harvest(harvesting_mask);
-    std::set<std::size_t> y_coordinates_to_harvest = get_y_coordinates_to_harvest(harvesting_mask);
+    // std::cout << "here" << std::endl;
 
-    std::size_t num_harvested_y = y_coordinates_to_harvest.size();
-    std::size_t num_harvested_x = x_coordinates_to_harvest.size();
+    // std::size_t logical_x = 0;
+    // for (std::size_t x = 0; x < grid_size_x; x++) {
+    //     if (!(harvesting_mask & (1 << x))) {
+    //         for (std::size_t y = 0; y < grid_size_y; y++) {
+    //             const tt_xy_pair& tensix_core = tensix_cores[x * grid_size_y + y];
+    //             tensix_logical_to_physical[logical_x][y] = CoreCoord(tensix_core.x, tensix_core.y, CoreType::TENSIX, CoordSystem::PHYSICAL);
+    //             tensix_physical_to_logical[tensix_core] = CoreCoord(logical_x, y, CoreType::TENSIX, CoordSystem::PHYSICAL);
+    //         }
+    //         logical_x++;
+    //     }
+    // }
 
-    std::size_t grid_size_x = worker_grid_size.x;
-    std::size_t grid_size_y = worker_grid_size.y;
+    // std::cout << "here 2" << std::endl;
 
-    logical_x_to_physical_x.resize(grid_size_x - num_harvested_x);
-    logical_y_to_physical_y.resize(grid_size_y - num_harvested_y);
+    // tensix_logical_to_virtual.resize(grid_size_x);
+    // for (auto& vec : tensix_logical_to_virtual) {
+    //     vec.resize(grid_size_y - num_harvested_y);
+    // }
 
-    logical_x_to_virtual_x.resize(grid_size_x - num_harvested_x);
-    logical_y_to_virtual_y.resize(grid_size_y - num_harvested_y);
+    // for (std::size_t x = 0; x < grid_size_x; x++) {
+    //     for (std::size_t y = 0; y < grid_size_y - num_harvested_y; y++) {
+    //         const tt_xy_pair& tensix_core = tensix_cores[x * grid_size_y + y];
+    //         tensix_logical_to_virtual[x][y] = CoreCoord(tensix_core.x, tensix_core.y, CoreType::TENSIX, CoordSystem::VIRTUAL);
+    //         tensix_virtual_to_logical[tensix_core] = CoreCoord(x, y, CoreType::TENSIX, CoordSystem::LOGICAL);
+    //     }
+    // }
 
-    fill_logical_to_physical_mapping(x_coordinates_to_harvest, y_coordinates_to_harvest, physical_x_unharvested, physical_y_unharvested);
-    fill_logical_to_virtual_mapping(physical_x_unharvested, physical_y_unharvested);
+    // std::cout << "here 3" << std::endl;
+
+    // fill_tensix_logical_to_translated();
+
+    // std::cout << "here 4" << std::endl;
 }
+
+void CoordinateManager::fill_tensix_logical_to_translated() {}
 
 void CoordinateManager::dram_harvesting(const std::size_t dram_harvesting_mask) {
 
-    for (std::size_t x = 0; x < dram_grid_size.x; x++) {
-        for (std::size_t y = 0; y < dram_grid_size.y; y++) {
-            dram_logical_to_virtual[{x, y}] = dram_cores[x * dram_grid_size.y + y];
-            dram_virtual_to_logical[dram_cores[x * dram_grid_size.y + y]] = {x, y};
+    // std::cout << "harvesting dram" << std::endl;
 
-            dram_logical_to_physical[{x, y}] = dram_cores[x * dram_grid_size.y + y];
-            dram_physical_to_logical[dram_cores[x * dram_grid_size.y + y]] = {x, y};
-        }
-    }
-}
+    // dram_logical_to_physical.resize(dram_grid_size.x);
+    // for (auto& vec : dram_logical_to_physical) {
+    //     vec.resize(dram_grid_size.y);
+    // }
 
-void CoordinateManager::fill_logical_to_physical_mapping(
-    const std::set<size_t>& x_to_harvest, const std::set<size_t>& y_to_harvest,
-    const std::set<size_t>& physical_x_unharvested, const std::set<size_t>& physical_y_unharvested) {
-    
-    auto physical_y_it = physical_y_unharvested.begin();
-    std::size_t logical_y = 0;
-    for (size_t y = 0; y < worker_grid_size.y; y++) {
-        if (y_to_harvest.find(y) == y_to_harvest.end()) {
-            logical_y_to_physical_y[logical_y] = *physical_y_it;
-            if (physical_y_to_logical_y.find(*physical_y_it) != physical_y_to_logical_y.end()) {
-                throw std::runtime_error("Duplicate physical y coordinate found in the worker cores");
-            }
-            physical_y_to_logical_y[*physical_y_it] = logical_y;
-            logical_y++;
-            physical_y_it++;
-        } else {
-            physical_y_it++;
-        }
-    }
+    // dram_logical_to_virtual.resize(dram_grid_size.x);
+    // for (auto& vec : dram_logical_to_virtual) {
+    //     vec.resize(dram_grid_size.y);
+    // }
 
-    auto physical_x_it = physical_x_unharvested.begin();
-    std::size_t logical_x = 0;
-    for(std::size_t x = 0; x < worker_grid_size.x; x++) {
-        if (x_to_harvest.find(x) == x_to_harvest.end()) {
-            logical_x_to_physical_x[logical_x] = *physical_x_it;
-            if (physical_x_to_logical_x.find(*physical_x_it) != physical_x_to_logical_x.end()) {
-                throw std::runtime_error("Duplicate physical x coordinate found in the worker cores");
-            }
-            physical_x_to_logical_x[*physical_x_it] = logical_x;
-            logical_x++;
-            physical_x_it++;
-        } else {
-            physical_x_it++;
-        }
-    }
-}
+    // for (std::size_t x = 0; x < dram_grid_size.x; x++) {
+    //     for (std::size_t y = 0; y < dram_grid_size.y; y++) {
+    //         const tt_xy_pair& dram_core = dram_cores[x * dram_grid_size.y + y];
+    //         dram_logical_to_virtual[x][y] = CoreCoord(dram_core.x, dram_core.y, CoreType::DRAM, CoordSystem::VIRTUAL);
+    //         dram_virtual_to_logical[dram_core] = CoreCoord(x, y, CoreType::DRAM, CoordSystem::LOGICAL);
 
-void CoordinateManager::fill_logical_to_virtual_mapping(const std::set<size_t>& physical_x_unharvested, const std::set<size_t>& physical_y_unharvested) {
-    auto physical_y_it = physical_y_unharvested.begin();
-    for (std::size_t y = 0; y < logical_y_to_virtual_y.size(); y++) {
-        logical_y_to_virtual_y[y] = *physical_y_it;
-        if (virtual_y_to_logical_y.find(*physical_y_it) != virtual_y_to_logical_y.end()) {
-            throw std::runtime_error("Duplicate virtual y coordinate found in the worker cores");
-        }
-        virtual_y_to_logical_y[*physical_y_it] = y;
-        physical_y_it++;
-    }
+    //         dram_logical_to_physical[x][y] = CoreCoord(dram_core.x, dram_core.y, CoreType::DRAM, CoordSystem::PHYSICAL);
+    //         dram_physical_to_logical[dram_core] = CoreCoord(x, y, CoreType::DRAM, CoordSystem::LOGICAL);
+    //     }
+    // }
 
-    auto physical_x_it = physical_x_unharvested.begin();
-    for (std::size_t x = 0; x < logical_x_to_virtual_x.size(); x++) {
-        logical_x_to_virtual_x[x] = *physical_x_it;
-        if (virtual_x_to_logical_x.find(*physical_x_it) != virtual_x_to_logical_x.end()) {
-            throw std::runtime_error("Duplicate virtual x coordinate found in the worker cores");
-        }
-        virtual_x_to_logical_x[*physical_x_it] = x;
-        physical_x_it++;
-    }
+    // std::cout << "finished harvesting dram" << std::endl;
 }
 
 #include "device/grayskull/grayskull_coordinate_manager.h"
@@ -339,14 +258,4 @@ std::unique_ptr<CoordinateManager> CoordinateManager::get_coordinate_manager(
     }
 
     throw std::runtime_error("Invalid architecture for creating coordinate manager");
-}
-
-// TODO(pjanevski): these functions should be deleted once
-// deep copy of CoordinateManager for SocDescriptor is implemented
-CoreCoord CoordinateManager::translated_to_logical_tensix(const CoreCoord core_coord) {
-    return core_coord;
-}
-
-CoreCoord CoordinateManager::logical_to_translated_tensix(const CoreCoord core_coord) {
-    return core_coord;
 }

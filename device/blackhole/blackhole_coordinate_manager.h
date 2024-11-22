@@ -18,9 +18,8 @@ public:
 
     void dram_harvesting(const std::size_t dram_harvesting_mask) override;
 
-protected:
-    CoreCoord translated_to_logical_tensix(const CoreCoord core_coord) override;
-    CoreCoord logical_to_translated_tensix(const CoreCoord core_coord) override;
+    void tensix_harvesting(const std::size_t tensix_harvesting_mask) override;
 
-    std::set<std::size_t> get_x_coordinates_to_harvest(std::size_t harvesting_mask) override;
+protected:
+    void fill_tensix_logical_to_translated() override;
 };
