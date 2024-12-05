@@ -5,6 +5,7 @@
  */
 #include "umd/device/coordinate_manager.h"
 
+#include "api/umd/device/tt_core_coordinates.h"
 #include "logger.hpp"
 #include "umd/device/blackhole_coordinate_manager.h"
 #include "umd/device/grayskull_coordinate_manager.h"
@@ -46,6 +47,7 @@ void CoordinateManager::initialize() {
     this->translate_eth_coords();
     this->translate_arc_coords();
     this->translate_pcie_coords();
+    this->fill_core_structures();
 }
 
 void CoordinateManager::add_core_translation(const CoreCoord& core_coord, const tt_xy_pair& physical_pair) {
@@ -282,6 +284,72 @@ size_t CoordinateManager::get_tensix_harvesting_mask() const { return physical_l
 
 size_t CoordinateManager::get_dram_harvesting_mask() const { return dram_harvesting_mask; }
 
+void CoordinateManager::fill_tensix_core_structures() {
+    std::vector<size_t> harvested_y_coords = get_harvested_indices(tensix_harvesting_mask);
+    for (size_t y = 0; y < tensix_grid_size.y; y++) {
+        for (size_t x = 0; x < tensix_grid_size.x; x++) {
+            const tt_xy_pair core = tensix_cores[y * tensix_grid_size.x + x];
+            CoreCoord core_coord(core.x, core.y, CoreType::TENSIX, CoordSystem::PHYSICAL);
+            if (std::find(harvested_y_coords.begin(), harvested_y_coords.end(), y) == harvested_y_coords.end()) {
+                unharvested_tensix_cores.push_back(core_coord);
+            } else {
+                harvested_tensix_cores.push_back(core_coord);
+            }
+        }
+    }
+    const size_t num_harvested_y = harvested_y_coords.size();
+    tensix_grid_size.y -= num_harvested_y;
+    harvested_tensix_grid_size.x = tensix_grid_size.x;
+    harvested_tensix_grid_size.y = num_harvested_y;
+}
+
+void CoordinateManager::fill_dram_core_structures() {
+    for (const tt_xy_pair& core : dram_cores) {
+        CoreCoord core_coord(core.x, core.y, CoreType::DRAM, CoordSystem::PHYSICAL);
+        unharvested_dram_cores.push_back(core_coord);
+    }
+    harvested_dram_grid_size.x = 0;
+    harvested_dram_grid_size.y = 0;
+}
+
+void CoordinateManager::fill_eth_core_structures() {
+    for (size_t y = 0; y < eth_grid_size.y; y++) {
+        for (size_t x = 0; x < eth_grid_size.x; x++) {
+            const tt_xy_pair core = eth_cores[y * eth_grid_size.x + x];
+            CoreCoord core_coord(core.x, core.y, CoreType::ETH, CoordSystem::PHYSICAL);
+            unharvested_eth_cores.push_back(core_coord);
+        }
+    }
+}
+
+void CoordinateManager::fill_arc_core_structures() {
+    for (size_t y = 0; y < arc_grid_size.y; y++) {
+        for (size_t x = 0; x < arc_grid_size.x; x++) {
+            const tt_xy_pair core = arc_cores[y * arc_grid_size.x + x];
+            CoreCoord core_coord(core.x, core.y, CoreType::ARC, CoordSystem::PHYSICAL);
+            unharvested_arc_cores.push_back(core_coord);
+        }
+    }
+}
+
+void CoordinateManager::fill_pcie_core_structures() {
+    for (size_t y = 0; y < pcie_grid_size.y; y++) {
+        for (size_t x = 0; x < pcie_grid_size.x; x++) {
+            const tt_xy_pair core = pcie_cores[y * pcie_grid_size.x + x];
+            CoreCoord core_coord(core.x, core.y, CoreType::PCIE, CoordSystem::PHYSICAL);
+            unharvested_pcie_cores.push_back(core_coord);
+        }
+    }
+}
+
+void CoordinateManager::fill_core_structures() {
+    fill_tensix_core_structures();
+    fill_dram_core_structures();
+    fill_eth_core_structures();
+    fill_arc_core_structures();
+    fill_pcie_core_structures();
+}
+
 void CoordinateManager::assert_create_coordinate_manager(
     const tt::ARCH arch, const size_t tensix_harvesting_mask, const size_t dram_harvesting_mask) {
     log_assert(
@@ -310,6 +378,62 @@ void CoordinateManager::shuffle_tensix_harvesting_mask(const std::vector<uint32_
     }
 
     tensix_harvesting_mask = new_harvesting_mask;
+}
+
+std::vector<tt::umd::CoreCoord> CoordinateManager::get_cores(const CoreType core_type) const {
+    switch (core_type) {
+        case CoreType::TENSIX:
+            return unharvested_tensix_cores;
+        case CoreType::DRAM:
+            return unharvested_dram_cores;
+        case CoreType::ETH:
+            return unharvested_eth_cores;
+        case CoreType::ARC:
+            return unharvested_arc_cores;
+        case CoreType::PCIE:
+            return unharvested_pcie_cores;
+        default:
+            throw std::runtime_error("Core type is not supported for getting cores");
+    }
+}
+
+tt_xy_pair CoordinateManager::get_grid_size(const CoreType core_type) const {
+    switch (core_type) {
+        case CoreType::TENSIX:
+            return tensix_grid_size;
+        case CoreType::DRAM:
+            return dram_grid_size;
+        case CoreType::ETH:
+            return eth_grid_size;
+        case CoreType::ARC:
+            return arc_grid_size;
+        case CoreType::PCIE:
+            return pcie_grid_size;
+        default:
+            throw std::runtime_error("Core type is not supported for getting grid size");
+    }
+}
+
+std::vector<tt::umd::CoreCoord> CoordinateManager::get_harvested_cores(const CoreType core_type) const {
+    switch (core_type) {
+        case CoreType::TENSIX:
+            return harvested_tensix_cores;
+        case CoreType::DRAM:
+            return harvested_dram_cores;
+        default:
+            throw std::runtime_error("Core type is not supported for getting harvested cores");
+    }
+}
+
+tt_xy_pair CoordinateManager::get_harvested_grid_size(const CoreType core_type) const {
+    switch (core_type) {
+        case CoreType::TENSIX:
+            return harvested_tensix_grid_size;
+        case CoreType::DRAM:
+            return harvested_dram_grid_size;
+        default:
+            throw std::runtime_error("Core type is not supported for getting harvested grid size");
+    }
 }
 
 std::shared_ptr<CoordinateManager> CoordinateManager::create_coordinate_manager(

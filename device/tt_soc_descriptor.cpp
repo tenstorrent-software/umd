@@ -12,11 +12,14 @@
 #include <string>
 #include <unordered_set>
 
+#include "api/umd/device/tt_soc_descriptor.h"
 #include "fmt/core.h"
 #include "utils.hpp"
 #include "yaml-cpp/yaml.h"
 
 // #include "l1_address_map.h"
+
+using namespace tt::umd;
 
 std::string format_node(tt_xy_pair xy) { return fmt::format("{}-{}", xy.x, xy.y); }
 
@@ -168,13 +171,46 @@ void tt_SocDescriptor::load_core_descriptors_from_device_descriptor(YAML::Node &
     }
 }
 
-void tt_SocDescriptor::create_coordinate_manager(
-    const std::size_t tensix_harvesting_mask, const std::size_t dram_harvesting_mask) {
-    coordinate_manager =
-        CoordinateManager::create_coordinate_manager(arch, tensix_harvesting_mask, dram_harvesting_mask);
+tt_xy_pair tt_SocDescriptor::calculate_grid_size(const std::vector<tt_xy_pair> &cores) {
+    std::unordered_set<size_t> x;
+    std::unordered_set<size_t> y;
+    for (auto core : cores) {
+        x.insert(core.x);
+        y.insert(core.y);
+    }
+    return {x.size(), y.size()};
 }
 
-tt::umd::CoreCoord tt_SocDescriptor::to(const tt::umd::CoreCoord core_coord, const CoordSystem coord_system) {
+void tt_SocDescriptor::create_coordinate_manager(
+    const std::size_t tensix_harvesting_mask, const std::size_t dram_harvesting_mask) {
+    const tt_xy_pair dram_grid_size = tt_xy_pair(dram_cores.size(), dram_cores.empty() ? 0 : dram_cores[0].size());
+    const tt_xy_pair arc_grid_size = tt_SocDescriptor::calculate_grid_size(arc_cores);
+    const tt_xy_pair pcie_grid_size = tt_SocDescriptor::calculate_grid_size(pcie_cores);
+    const tt_xy_pair eth_grid_size = tt_SocDescriptor::calculate_grid_size(ethernet_cores);
+
+    std::vector<tt_xy_pair> dram_cores_unpacked;
+    for (const auto &vec : dram_cores) {
+        for (const auto &core : vec) {
+            dram_cores_unpacked.push_back(core);
+        }
+    }
+    coordinate_manager = CoordinateManager::create_coordinate_manager(
+        arch,
+        worker_grid_size,
+        workers,
+        tensix_harvesting_mask,
+        dram_grid_size,
+        dram_cores_unpacked,
+        dram_harvesting_mask,
+        eth_grid_size,
+        ethernet_cores,
+        arc_grid_size,
+        arc_cores,
+        pcie_grid_size,
+        pcie_cores);
+}
+
+tt::umd::CoreCoord tt_SocDescriptor::to(const tt::umd::CoreCoord core_coord, const CoordSystem coord_system) const {
     return coordinate_manager->to(core_coord, coord_system);
 }
 
@@ -221,17 +257,24 @@ int tt_SocDescriptor::get_num_dram_channels() const {
 }
 
 bool tt_SocDescriptor::is_worker_core(const tt_xy_pair &core) const {
-    return (
-        routing_x_to_worker_x.find(core.x) != routing_x_to_worker_x.end() &&
-        routing_y_to_worker_y.find(core.y) != routing_y_to_worker_y.end());
+    const CoreCoord physical_tensix_core = CoreCoord(core.x, core.y, CoreType::TENSIX, CoordSystem::PHYSICAL);
+    const std::vector<CoreCoord> &tensix_cores = get_cores(CoreType::TENSIX);
+    return std::find(tensix_cores.begin(), tensix_cores.end(), physical_tensix_core) != tensix_cores.end();
 }
 
 tt_xy_pair tt_SocDescriptor::get_core_for_dram_channel(int dram_chan, int subchannel) const {
     return this->dram_cores.at(dram_chan).at(subchannel);
-};
+}
+
+CoreCoord tt_SocDescriptor::get_dram_core_for_channel(int dram_chan, int subchannel) const {
+    const CoreCoord logical_dram_coord = CoreCoord(dram_chan, subchannel, CoreType::DRAM, CoordSystem::LOGICAL);
+    return to(logical_dram_coord, CoordSystem::PHYSICAL);
+}
 
 bool tt_SocDescriptor::is_ethernet_core(const tt_xy_pair &core) const {
-    return this->ethernet_core_channel_map.find(core) != ethernet_core_channel_map.end();
+    const CoreCoord eth_coord = CoreCoord(core.x, core.y, CoreType::ETH, CoordSystem::PHYSICAL);
+    const std::vector<CoreCoord> &eth_coords = get_cores(CoreType::ETH);
+    return std::find(eth_coords.begin(), eth_coords.end(), eth_coord) != eth_coords.end();
 }
 
 std::string tt_SocDescriptor::get_soc_descriptor_path(tt::ARCH arch) {
@@ -248,4 +291,20 @@ std::string tt_SocDescriptor::get_soc_descriptor_path(tt::ARCH arch) {
         default:
             throw std::runtime_error("Invalid architecture");
     }
+}
+
+std::vector<tt::umd::CoreCoord> tt_SocDescriptor::get_cores(const CoreType core_type) const {
+    return coordinate_manager->get_cores(core_type);
+}
+
+std::vector<tt::umd::CoreCoord> tt_SocDescriptor::get_harvested_cores(const CoreType core_type) const {
+    return coordinate_manager->get_harvested_cores(core_type);
+}
+
+tt_xy_pair tt_SocDescriptor::get_grid_size(const CoreType core_type) const {
+    return coordinate_manager->get_grid_size(core_type);
+}
+
+tt_xy_pair tt_SocDescriptor::get_harvested_grid_size(const CoreType core_type) const {
+    return coordinate_manager->get_harvested_grid_size(core_type);
 }
