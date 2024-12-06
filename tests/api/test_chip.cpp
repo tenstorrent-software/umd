@@ -7,8 +7,10 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <chrono>  // Add this include at the top of the file if not already present
 #include <filesystem>
 #include <string>
+#include <thread>  // Add this include at the top of the file if not already present
 #include <vector>
 
 #include "fmt/xchar.h"
@@ -152,6 +154,9 @@ TEST(ApiChipTest, SpecifyLegalDeassertRiscResetOnCore) {
 
     uint32_t soft_reset_reg_addr = 0xFFB121B0;
     uint32_t risc_reset_val;
+    // Wait for 1sec
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+
     umd_cluster->read_from_device(&risc_reset_val, chip_core_coord, soft_reset_reg_addr, sizeof(uint32_t), "REG_TLB");
     EXPECT_EQ(static_cast<uint32_t>(deassert_val), risc_reset_val);
 }
@@ -175,6 +180,8 @@ TEST(ApiChipTest, SpecifyIllegalDeassertRiscResetOnCore) {
 
     uint32_t soft_reset_reg_addr = 0xFFB121B0;
     uint32_t risc_reset_val;
+    // Wait for 1sec
+    std::this_thread::sleep_for(std::chrono::seconds(1));
     umd_cluster->read_from_device(&risc_reset_val, chip_core_coord, soft_reset_reg_addr, sizeof(uint32_t), "REG_TLB");
     uint32_t expected_deassert_val = static_cast<uint32_t>(deassert_val & ALL_TENSIX_SOFT_RESET);
     EXPECT_EQ(risc_reset_val, expected_deassert_val);
