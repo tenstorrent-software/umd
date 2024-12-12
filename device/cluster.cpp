@@ -345,7 +345,7 @@ void Cluster::construct_cluster(
 
     // All dynamic TLBs use Relaxed Ordering by default
     for (const auto& tlb : dynamic_tlb_config) {
-        dynamic_tlb_ordering_modes.insert({tlb.first, TLB_DATA::Relaxed});
+        dynamic_tlb_ordering_modes.insert({tlb.first, TLB_DATA::Posted});
     }
     create_device(target_mmio_device_ids, num_host_mem_ch_per_mmio_device, skip_driver_allocs, clean_system_resources);
 
