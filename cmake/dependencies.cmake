@@ -49,56 +49,10 @@ function(fetch_dependencies)
     fetch_boost_library(interprocess)
 
     ###################################################################################################################
-    # Nanomsg
-    ###################################################################################################################
-    CPMAddPackage(
-        NAME nanomsg
-        GITHUB_REPOSITORY nanomsg/nng
-        GIT_TAG v1.8.0
-        OPTIONS
-            "BUILD_SHARED_LIBS OFF"
-            "NNG_TESTS OFF"
-            "NNG_TOOLS OFF"
-    )
-
-    ###################################################################################################################
-    # Flatbuffers
-    ###################################################################################################################
-    CPMAddPackage(
-        NAME flatbuffers
-        GITHUB_REPOSITORY google/flatbuffers
-        GIT_TAG v24.3.25
-        OPTIONS
-            "FLATBUFFERS_BUILD_FLATC ON"
-            "FLATBUFFERS_BUILD_TESTS OFF"
-            "FLATBUFFERS_SKIP_MONSTER_EXTRA ON"
-            "FLATBUFFERS_STRICT_MODE ON"
-    )
-
-    ###################################################################################################################
-    # libuv (for process management)
-    ###################################################################################################################
-    CPMAddPackage(
-        NAME libuv
-        GITHUB_REPOSITORY libuv/libuv
-        GIT_TAG v1.48.0
-        OPTIONS
-            "LIBUV_BUILD_TESTS OFF"
-            "LIBUV_BUILD_SHARED OFF"
-    )
-
-    ###################################################################################################################
     # fmt : https://github.com/fmtlib/fmt
     ###################################################################################################################
 
     CPMAddPackage(NAME fmt GITHUB_REPOSITORY fmtlib/fmt GIT_TAG 11.0.1)
-
-    ###################################################################################################################
-    # nanobench (for uBenchmarking)
-    ###################################################################################################################
-    if(MASTER_PROJECT)
-        CPMAddPackage(NAME nanobench GITHUB_REPOSITORY martinus/nanobench GIT_TAG v4.3.11)
-    endif()
 
     ####################################################################################################################
     # spdlog

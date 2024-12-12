@@ -13,7 +13,6 @@ target_link_libraries(
         gtest
         pthread
         fmt::fmt-header-only
-        nng
 )
 target_include_directories(
     test_common
@@ -55,13 +54,9 @@ foreach(ARCH IN LISTS ARCHS)
     include_directories("${CMAKE_CURRENT_BINARY_DIR}/${ARCH}")
 endforeach()
 
-if(MASTER_PROJECT)
-    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/microbenchmark)
-endif()
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/api)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/misc)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/pcie)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/simulation)
 if($ENV{ARCH_NAME} STREQUAL "wormhole_b0")
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/wormhole)
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/galaxy)
