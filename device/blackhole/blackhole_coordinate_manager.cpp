@@ -254,40 +254,78 @@ void BlackholeCoordinateManager::fill_dram_physical_translated_mapping() {
     }
 }
 
-void BlackholeCoordinateManager::fill_tensix_core_structures() {
+std::vector<CoreCoord> BlackholeCoordinateManager::get_tensix_cores() const {
     std::vector<size_t> harvested_x_coords = get_harvested_indices(tensix_harvesting_mask);
+    std::vector<CoreCoord> unharvested_tensix_cores; 
     for (size_t y = 0; y < tensix_grid_size.y; y++) {
         for (size_t x = 0; x < tensix_grid_size.x; x++) {
             const tt_xy_pair core = tensix_cores[y * tensix_grid_size.x + x];
             CoreCoord core_coord(core.x, core.y, CoreType::TENSIX, CoordSystem::PHYSICAL);
             if (std::find(harvested_x_coords.begin(), harvested_x_coords.end(), x) == harvested_x_coords.end()) {
                 unharvested_tensix_cores.push_back(core_coord);
-            } else {
+            }
+        }
+    }
+    return unharvested_tensix_cores;
+}
+
+std::vector<CoreCoord> BlackholeCoordinateManager::get_harvested_tensix_cores() const {
+    std::vector<size_t> harvested_x_coords = get_harvested_indices(tensix_harvesting_mask);
+    std::vector<CoreCoord> harvested_tensix_cores; 
+    for (size_t y = 0; y < tensix_grid_size.y; y++) {
+        for (size_t x = 0; x < tensix_grid_size.x; x++) {
+            const tt_xy_pair core = tensix_cores[y * tensix_grid_size.x + x];
+            CoreCoord core_coord(core.x, core.y, CoreType::TENSIX, CoordSystem::PHYSICAL);
+            if (std::find(harvested_x_coords.begin(), harvested_x_coords.end(), x) != harvested_x_coords.end()) {
                 harvested_tensix_cores.push_back(core_coord);
             }
         }
     }
-    const size_t num_harvested_x = harvested_x_coords.size();
-    tensix_grid_size.x -= num_harvested_x;
-    harvested_tensix_grid_size.x = num_harvested_x;
-    harvested_tensix_grid_size.y = tensix_grid_size.y;
+    return harvested_tensix_cores;
 }
 
-void BlackholeCoordinateManager::fill_dram_core_structures() {
+std::vector<CoreCoord> BlackholeCoordinateManager::get_dram_cores() const {
     std::vector<size_t> harvested_banks = get_harvested_indices(dram_harvesting_mask);
-    for (size_t bank = 0; bank < dram_grid_size.x; bank++) {
-        for (size_t port = 0; port < dram_grid_size.y; port++) {
-            const tt_xy_pair core = dram_cores[bank * dram_grid_size.y + port];
+    std::vector<CoreCoord> unharvested_dram_cores; 
+    for (size_t x = 0; x < dram_grid_size.x; x++) {
+        for (size_t y = 0; y < dram_grid_size.y; y++) {
+            const tt_xy_pair core = dram_cores[y * dram_grid_size.x + x];
             CoreCoord core_coord(core.x, core.y, CoreType::DRAM, CoordSystem::PHYSICAL);
-            if (std::find(harvested_banks.begin(), harvested_banks.end(), bank) == harvested_banks.end()) {
+            if (std::find(harvested_banks.begin(), harvested_banks.end(), x) == harvested_banks.end()) {
                 unharvested_dram_cores.push_back(core_coord);
-            } else {
+            }
+        }
+    }
+    return unharvested_dram_cores;
+}
+
+std::vector<CoreCoord> BlackholeCoordinateManager::get_harvested_dram_cores() const {
+    std::vector<size_t> harvested_banks = get_harvested_indices(dram_harvesting_mask);
+    std::vector<CoreCoord> harvested_dram_cores; 
+    for (size_t x = 0; x < dram_grid_size.x; x++) {
+        for (size_t y = 0; y < dram_grid_size.y; y++) {
+            const tt_xy_pair core = dram_cores[y * dram_grid_size.x + x];
+            CoreCoord core_coord(core.x, core.y, CoreType::DRAM, CoordSystem::PHYSICAL);
+            if (std::find(harvested_banks.begin(), harvested_banks.end(), x) != harvested_banks.end()) {
                 harvested_dram_cores.push_back(core_coord);
             }
         }
     }
-    const size_t num_harvested_banks = harvested_banks.size();
-    dram_grid_size.x -= num_harvested_banks;
-    harvested_dram_grid_size.x = num_harvested_banks;
-    harvested_dram_grid_size.y = dram_grid_size.y;
+    return harvested_dram_cores;
+}
+
+tt_xy_pair BlackholeCoordinateManager::get_harvested_tensix_grid_size() const {
+    return {CoordinateManager::get_num_harvested(tensix_harvesting_mask), tensix_grid_size.y};
+}
+
+tt_xy_pair BlackholeCoordinateManager::get_harvested_dram_grid_size() const {
+    return {CoordinateManager::get_num_harvested(dram_harvesting_mask), dram_grid_size.y};
+}
+
+tt_xy_pair BlackholeCoordinateManager::get_tensix_grid_size() const {
+    return {tensix_grid_size.x - CoordinateManager::get_num_harvested(tensix_harvesting_mask), tensix_grid_size.y};
+}
+
+tt_xy_pair BlackholeCoordinateManager::get_dram_grid_size() const {
+    return {dram_grid_size.x - CoordinateManager::get_num_harvested(dram_harvesting_mask), dram_grid_size.y};
 }

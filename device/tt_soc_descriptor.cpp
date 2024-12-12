@@ -208,6 +208,7 @@ void tt_SocDescriptor::create_coordinate_manager(
         arc_cores,
         pcie_grid_size,
         pcie_cores);
+    get_cores_and_grid_size_from_coordinate_manager();
 }
 
 tt::umd::CoreCoord tt_SocDescriptor::to(const tt::umd::CoreCoord core_coord, const CoordSystem coord_system) const {
@@ -293,18 +294,53 @@ std::string tt_SocDescriptor::get_soc_descriptor_path(tt::ARCH arch) {
     }
 }
 
+void tt_SocDescriptor::get_cores_and_grid_size_from_coordinate_manager() {
+    cores_map.insert({CoreType::TENSIX, coordinate_manager->get_cores(CoreType::TENSIX)});
+    grid_size_map.insert({CoreType::TENSIX, coordinate_manager->get_grid_size(CoreType::TENSIX)});
+
+    cores_map.insert({CoreType::DRAM, coordinate_manager->get_cores(CoreType::DRAM)});
+    grid_size_map.insert({CoreType::DRAM, coordinate_manager->get_grid_size(CoreType::DRAM)});
+
+    cores_map.insert({CoreType::ETH, coordinate_manager->get_cores(CoreType::ETH)});
+    grid_size_map.insert({CoreType::ETH, coordinate_manager->get_grid_size(CoreType::ETH)});
+
+    cores_map.insert({CoreType::ARC, coordinate_manager->get_cores(CoreType::ARC)});
+    grid_size_map.insert({CoreType::ARC, coordinate_manager->get_grid_size(CoreType::ARC)});
+
+    cores_map.insert({CoreType::PCIE, coordinate_manager->get_cores(CoreType::PCIE)});
+    grid_size_map.insert({CoreType::PCIE, coordinate_manager->get_grid_size(CoreType::PCIE)});
+
+    harvested_cores_map.insert({CoreType::TENSIX, coordinate_manager->get_harvested_cores(CoreType::TENSIX)});
+    harvested_grid_size_map.insert({CoreType::TENSIX, coordinate_manager->get_harvested_grid_size(CoreType::TENSIX)});
+
+    harvested_cores_map.insert({CoreType::DRAM, coordinate_manager->get_harvested_cores(CoreType::DRAM)});
+    harvested_grid_size_map.insert({CoreType::DRAM, coordinate_manager->get_harvested_grid_size(CoreType::DRAM)});
+}
+
 std::vector<tt::umd::CoreCoord> tt_SocDescriptor::get_cores(const CoreType core_type) const {
-    return coordinate_manager->get_cores(core_type);
+    if (cores_map.find(core_type) == cores_map.end()) {
+        return {};
+    }
+    return cores_map.at(core_type);
 }
 
 std::vector<tt::umd::CoreCoord> tt_SocDescriptor::get_harvested_cores(const CoreType core_type) const {
-    return coordinate_manager->get_harvested_cores(core_type);
+    if (harvested_cores_map.find(core_type) == harvested_cores_map.end()) {
+        return {};
+    }
+    return harvested_cores_map.at(core_type);
 }
 
 tt_xy_pair tt_SocDescriptor::get_grid_size(const CoreType core_type) const {
-    return coordinate_manager->get_grid_size(core_type);
+    if (grid_size_map.find(core_type) == grid_size_map.end()) {
+        return {0, 0};
+    }
+    return grid_size_map.at(core_type);
 }
 
 tt_xy_pair tt_SocDescriptor::get_harvested_grid_size(const CoreType core_type) const {
-    return coordinate_manager->get_harvested_grid_size(core_type);
+    if (harvested_grid_size_map.find(core_type) == harvested_grid_size_map.end()) {
+        return {0, 0};
+    }
+    return harvested_grid_size_map.at(core_type);
 }

@@ -139,6 +139,7 @@ private:
     void create_coordinate_manager(const std::size_t tensix_harvesting_mask, const std::size_t dram_harvesting_mask);
     void load_core_descriptors_from_device_descriptor(YAML::Node &device_descriptor_yaml);
     void load_soc_features_from_device_descriptor(YAML::Node &device_descriptor_yaml);
+    void get_cores_and_grid_size_from_coordinate_manager();
 
     static tt_xy_pair calculate_grid_size(const std::vector<tt_xy_pair> &cores);
 
@@ -146,6 +147,10 @@ private:
     // is not needed anymore. Soc descriptor and coordinate manager should be
     // created once per chip.
     std::shared_ptr<CoordinateManager> coordinate_manager = nullptr;
+    std::map<CoreType, std::vector<tt::umd::CoreCoord>> cores_map;
+    std::map<CoreType, tt_xy_pair> grid_size_map;
+    std::map<CoreType, std::vector<tt::umd::CoreCoord>> harvested_cores_map;
+    std::map<CoreType, tt_xy_pair> harvested_grid_size_map;
 };
 
 // Allocates a new soc descriptor on the heap. Returns an owning pointer.
