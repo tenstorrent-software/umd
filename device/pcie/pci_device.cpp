@@ -18,7 +18,6 @@
 #include <vector>
 
 #include "assert.hpp"
-#include "cpuset_lib.hpp"
 #include "ioctl.h"
 #include "logger.hpp"
 #include "umd/device/hugepage.h"
@@ -441,19 +440,6 @@ bool PCIDevice::init_hugepage(uint32_t num_host_mem_channels) {
                 "/sys/kernel/mm/hugepages/hugepages-1048576kB/nr_hugepages");  // Hardcoded for 1GB hugepage.
             success = false;
             continue;
-        }
-
-        // Beter performance if hugepage just allocated (populate flag to prevent lazy alloc) is migrated to same
-        // numanode as TT device.
-        if (!tt::cpuset::tt_cpuset_allocator::bind_area_to_memory_nodeset(physical_device_id, mapping, hugepage_size)) {
-            log_warning(
-                LogSiliconDriver,
-                "---- ttSiliconDevice::init_hugepage: bind_area_to_memory_nodeset() failed (physical_device_id: {} ch: "
-                "{}). "
-                "Hugepage allocation is not on NumaNode matching TT Device. Side-Effect is decreased Device->Host perf "
-                "(Issue #893).",
-                physical_device_id,
-                ch);
         }
 
         tenstorrent_pin_pages pin_pages;

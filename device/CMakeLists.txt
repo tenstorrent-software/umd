@@ -13,7 +13,6 @@ target_sources(
         chip/remote_chip.cpp
         cluster.cpp
         coordinate_manager.cpp
-        cpuset_lib.cpp
         grayskull/grayskull_implementation.cpp
         wormhole/wormhole_implementation.cpp
         blackhole/blackhole_implementation.cpp
@@ -49,13 +48,11 @@ target_link_libraries(
     PRIVATE
         umd::Common
         umd::Firmware
-        hwloc
         rt
         Boost::interprocess
         spdlog::spdlog_header_only
         fmt::fmt-header-only
         yaml-cpp::yaml-cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/libs/${CMAKE_SYSTEM_PROCESSOR}/libcreate_ethernet_map.a
 )
 
 install(

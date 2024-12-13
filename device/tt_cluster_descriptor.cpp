@@ -10,7 +10,7 @@
 
 #include "disjoint_set.hpp"
 #include "fmt/core.h"
-#include "libs/create_ethernet_map.h"
+// #include "libs/create_ethernet_map.h"
 #include "logger.hpp"
 #include "yaml-cpp/yaml.h"
 
@@ -389,6 +389,9 @@ chip_id_t tt_ClusterDescriptor::get_closest_mmio_capable_chip(const chip_id_t ch
 
 std::string tt_ClusterDescriptor::get_cluster_descriptor_file_path() {
     static std::string yaml_path;
+
+    // We never should have done this!
+#if 0
     static bool is_initialized = false;
     if (!is_initialized) {
         // Cluster descriptor yaml will be created in a unique temporary directory.
@@ -410,6 +413,7 @@ std::string tt_ClusterDescriptor::get_cluster_descriptor_file_path() {
         yaml_path = cluster_path.string();
         is_initialized = true;
     }
+#endif
     return yaml_path;
 }
 
@@ -438,7 +442,23 @@ std::unique_ptr<tt_ClusterDescriptor> tt_ClusterDescriptor::create_from_yaml(
 }
 
 std::unique_ptr<tt_ClusterDescriptor> tt_ClusterDescriptor::create() {
+#if 0
     return tt_ClusterDescriptor::create_from_yaml(tt_ClusterDescriptor::get_cluster_descriptor_file_path());
+#else  // for X280
+    // auto desc = std::make_unique<tt_ClusterDescriptor>();
+    // TODO: fix this class so that works ^
+    auto desc = std::unique_ptr<tt_ClusterDescriptor>(new tt_ClusterDescriptor());
+    desc->chips_with_mmio[0] = 0;
+    desc->all_chips.insert(0);
+    desc->chip_arch[0] = tt::ARCH::BLACKHOLE;
+    desc->noc_translation_enabled[0] = false;
+    desc->harvesting_masks[0] = 0;
+    desc->enabled_active_chips.insert(0);
+    desc->closest_mmio_chip_cache[0] = 0;
+    desc->chip_board_type[0] = BoardType::P100;
+    desc->chips_grouped_by_closest_mmio[0] = {0};
+    return desc;
+#endif
 }
 
 std::unique_ptr<tt_ClusterDescriptor> tt_ClusterDescriptor::create_mock_cluster(

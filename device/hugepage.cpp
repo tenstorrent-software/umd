@@ -9,7 +9,8 @@
 #include <fcntl.h>     // for O_RDWR and other constants
 #include <sys/stat.h>  // for umask
 
-#include "cpuset_lib.hpp"
+#include <regex>
+
 #include "logger.hpp"
 
 const uint32_t g_MAX_HOST_MEM_CHANNELS = 4;
