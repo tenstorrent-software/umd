@@ -235,6 +235,15 @@ bool tt_SocDescriptor::is_ethernet_core(const tt_xy_pair &core) const {
 }
 
 std::string tt_SocDescriptor::get_soc_descriptor_path(tt::ARCH arch) {
+    // For now I need to get something working and this disgusting get_abs_path
+    // business has nothing to do with my actual goal.
+    // The problem here is I can't just copy a test to a different environment,
+    // it's not portable to a different machine/environment.
+    //
+    // Maybe we should get our act together and install this stuff into
+    // /opt/tenstorrent/etc or some such.
+    return "/root/blackhole_x280.yaml";
+#if NOPE
     switch (arch) {
         case tt::ARCH::GRAYSKULL:
             // TODO: this path needs to be changed to point to soc descriptors outside of tests directory.
@@ -248,4 +257,5 @@ std::string tt_SocDescriptor::get_soc_descriptor_path(tt::ARCH arch) {
         default:
             throw std::runtime_error("Invalid architecture");
     }
+#endif
 }

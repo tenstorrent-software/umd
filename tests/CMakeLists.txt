@@ -19,8 +19,7 @@ target_include_directories(
 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/api)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/misc)
-#add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/pcie)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/blackhole)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/x280)
 
 add_custom_target(
     umd_tests

@@ -12,7 +12,8 @@ namespace tt {
 
 namespace umd {
 class Cluster;
-}
+class ClusterX280;
+}  // namespace umd
 
 /**
  * @brief Provides write access to a SoC core via a statically-mapped TLB.
@@ -24,6 +25,7 @@ class Cluster;
  */
 class Writer {
     friend class tt::umd::Cluster;
+    friend class tt::umd::ClusterX280;
 
 public:
     /**

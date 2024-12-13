@@ -12,6 +12,7 @@ target_sources(
         chip/mock_chip.cpp
         chip/remote_chip.cpp
         cluster.cpp
+        cluster_x280.cpp
         coordinate_manager.cpp
         grayskull/grayskull_implementation.cpp
         wormhole/wormhole_implementation.cpp
