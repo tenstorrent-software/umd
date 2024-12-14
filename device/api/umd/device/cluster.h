@@ -938,8 +938,7 @@ public:
         uint64_t address,
         uint64_t ordering = TLB_DATA::Posted);
     virtual void set_fallback_tlb_ordering_mode(const std::string& fallback_tlb, uint64_t ordering = TLB_DATA::Posted);
-    virtual void setup_core_to_tlb_map(
-        const chip_id_t logical_device_id, std::function<std::int32_t(tt_xy_pair)> mapping_function);
+    virtual void setup_core_to_tlb_map(const chip_id_t logical_device_id, std::function<std::int32_t(tt_xy_pair)> mapping_function);
     virtual void configure_active_ethernet_cores_for_mmio_device(
         chip_id_t mmio_chip, const std::unordered_set<tt_xy_pair>& active_eth_cores_per_chip);
     virtual void start_device(const tt_device_params& device_params);
@@ -962,20 +961,18 @@ public:
         std::set<uint32_t>& columns_to_exclude,
         const std::string& fallback_tlb);
 
-    virtual void read_from_device(
-        void* mem_ptr, tt_cxy_pair core, uint64_t addr, uint32_t size, const std::string& fallback_tlb);
-    virtual void write_to_sysmem(
-        const void* mem_ptr, uint32_t size, uint64_t addr, uint16_t channel, chip_id_t src_device_id);
-    virtual void read_from_sysmem(
-        void* mem_ptr, uint64_t addr, uint16_t channel, uint32_t size, chip_id_t src_device_id);
-    virtual void wait_for_non_mmio_flush();
-    virtual void wait_for_non_mmio_flush(const chip_id_t chip_id);
-    void l1_membar(
-        const chip_id_t chip, const std::string& fallback_tlb, const std::unordered_set<tt_xy_pair>& cores = {});
-    void dram_membar(
-        const chip_id_t chip, const std::string& fallback_tlb, const std::unordered_set<uint32_t>& channels);
-    void dram_membar(
-        const chip_id_t chip, const std::string& fallback_tlb, const std::unordered_set<tt_xy_pair>& cores = {});
+    virtual void read_from_device(void* mem_ptr, tt_cxy_pair core, uint64_t addr, uint32_t size, const std::string& fallback_tlb);
+
+    // >_<
+    virtual void write_to_sysmem(const void* src, uint32_t size, uint64_t addr, uint16_t channel, chip_id_t src_device_id);
+    virtual void read_from_sysmem(void* dst, uint64_t addr, uint16_t channel, uint32_t size, chip_id_t src_device_id);
+
+    virtual void wait_for_non_mmio_flush() {}
+    virtual void wait_for_non_mmio_flush(const chip_id_t) {}
+    void l1_membar(const chip_id_t chip, const std::string& fallback_tlb, const std::unordered_set<tt_xy_pair>& cores = {});
+    void dram_membar(const chip_id_t chip, const std::string& fallback_tlb, const std::unordered_set<uint32_t>& channels);
+    void dram_membar(const chip_id_t chip, const std::string& fallback_tlb, const std::unordered_set<tt_xy_pair>& cores = {});
+
     // These functions are used by Debuda, so make them public
     void bar_write32(int logical_device_id, uint32_t addr, uint32_t data);
     uint32_t bar_read32(int logical_device_id, uint32_t addr);
@@ -1049,62 +1046,15 @@ public:
     virtual ~ClusterX280();
 
 private:
-    // Helper functions
-    // Startup + teardown
-    void create_device(
-        const std::set<chip_id_t>& target_mmio_device_ids,
-        const uint32_t& num_host_mem_ch_per_mmio_device,
-        const bool skip_driver_allocs,
-        const bool clean_system_resources);
-    void initialize_interprocess_mutexes(int pci_interface_id, bool cleanup_mutexes_in_shm);
-    void cleanup_shared_host_state();
-    void initialize_pcie_devices();
     void broadcast_pcie_tensix_risc_reset(chip_id_t chip_id, const TensixSoftResetOptions& cores);
     void broadcast_tensix_risc_reset_to_cluster(const TensixSoftResetOptions& soft_resets);
-    void send_remote_tensix_risc_reset_to_core(const tt_cxy_pair& core, const TensixSoftResetOptions& soft_resets);
     void send_tensix_risc_reset_to_core(const tt_cxy_pair& core, const TensixSoftResetOptions& soft_resets);
     void perform_harvesting_on_soc_descriptors();
     void populate_cores();
-    void init_pcie_iatus();  // No more p2p support.
-    void check_pcie_device_initialized(int device_id);
     void set_pcie_power_state(tt_DevicePowerState state);
-    int set_remote_power_state(const chip_id_t& chip, tt_DevicePowerState device_state);
-    void set_power_state(tt_DevicePowerState state);
-    uint32_t get_power_state_arc_msg(chip_id_t chip_id, tt_DevicePowerState state);
-    void enable_local_ethernet_queue(const chip_id_t& chip, int timeout);
-    void enable_ethernet_queue(int timeout);
-    void enable_remote_ethernet_queue(const chip_id_t& chip, int timeout);
     void deassert_resets_and_set_power_state();
-    int iatu_configure_peer_region(
-        int logical_device_id, uint32_t peer_region_id, uint64_t bar_addr_64, uint32_t region_size);
     uint32_t get_harvested_noc_rows(uint32_t harvesting_mask);
-    uint32_t get_harvested_rows(int logical_device_id);
-    int get_clock(int logical_device_id);
 
-    // Communication Functions
-    void read_buffer(
-        void* mem_ptr, uint32_t address, uint16_t channel, uint32_t size_in_bytes, chip_id_t src_device_id);
-    void write_buffer(const void* mem_ptr, uint32_t size, uint32_t address, uint16_t channel, chip_id_t src_device_id);
-    void write_device_memory(
-        const void* mem_ptr,
-        uint32_t size_in_bytes,
-        tt_cxy_pair target,
-        uint64_t address,
-        const std::string& fallback_tlb);
-    void write_to_non_mmio_device(
-        const void* mem_ptr,
-        uint32_t size_in_bytes,
-        tt_cxy_pair core,
-        uint64_t address,
-        bool broadcast = false,
-        std::vector<int> broadcast_header = {});
-    void read_device_memory(
-        void* mem_ptr, tt_cxy_pair target, uint64_t address, uint32_t size_in_bytes, const std::string& fallback_tlb);
-    void read_from_non_mmio_device(void* mem_ptr, tt_cxy_pair core, uint64_t address, uint32_t size_in_bytes);
-    void read_mmio_device_register(
-        void* mem_ptr, tt_cxy_pair core, uint64_t addr, uint32_t size, const std::string& fallback_tlb);
-    void write_mmio_device_register(
-        const void* mem_ptr, tt_cxy_pair core, uint64_t addr, uint32_t size, const std::string& fallback_tlb);
     void pcie_broadcast_write(
         chip_id_t chip,
         const void* mem_ptr,
@@ -1155,28 +1105,11 @@ private:
         int timeout = 1,
         uint32_t* return_3 = nullptr,
         uint32_t* return_4 = nullptr);
-    bool address_in_tlb_space(
-        uint64_t address, uint32_t size_in_bytes, int32_t tlb_index, uint64_t tlb_size, uint32_t chip);
-    std::shared_ptr<boost::interprocess::named_mutex> get_mutex(const std::string& tlb_name, int pci_interface_id);
-    virtual uint32_t get_harvested_noc_rows_for_chip(
-        int logical_device_id);  // Returns one-hot encoded harvesting mask for PCIe mapped chips
-    void generate_tensix_broadcast_grids_for_grayskull(
-        std::set<std::pair<tt_xy_pair, tt_xy_pair>>& broadcast_grids,
-        std::set<uint32_t>& rows_to_exclude,
-        std::set<uint32_t>& cols_to_exclude);
-    std::unordered_map<chip_id_t, std::vector<std::vector<int>>>& get_ethernet_broadcast_headers(
-        const std::set<chip_id_t>& chips_to_exclude);
-    // Test functions
-    void verify_eth_fw();
-    void verify_sw_fw_versions(int device_id, uint32_t sw_version, std::vector<uint32_t>& fw_versions);
-    int test_setup_interface();
+    virtual uint32_t get_harvested_noc_rows_for_chip(int logical_device_id);
 
-    // This functions has to be called for local chip, and then it will wait for all connected remote chips to flush.
-    void wait_for_connected_non_mmio_flush(chip_id_t chip_id);
     std::unique_ptr<Chip> construct_chip_from_cluster(
         chip_id_t chip_id, tt_ClusterDescriptor* cluster_desc, tt_SocDescriptor& soc_desc);
     std::unique_ptr<Chip> construct_chip_from_cluster(chip_id_t logical_device_id, tt_ClusterDescriptor* cluster_desc);
-    void add_chip(chip_id_t chip_id, std::unique_ptr<Chip> chip);
     void construct_cluster(
         const uint32_t& num_host_mem_ch_per_mmio_device,
         const bool skip_driver_allocs,
@@ -1197,8 +1130,6 @@ private:
     std::unordered_map<chip_id_t, std::unique_ptr<Chip>> chips_;
     tt::ARCH arch_name;
 
-    // Map of enabled tt devices
-    std::unordered_map<chip_id_t, std::unique_ptr<TTDevice>> m_tt_device_map;
     std::shared_ptr<tt_ClusterDescriptor> cluster_desc;
 
     // remote eth transfer setup
@@ -1216,21 +1147,8 @@ private:
     std::unordered_set<tt_xy_pair> dram_cores = {};
     std::map<chip_id_t, std::unordered_map<int32_t, uint64_t>> tlb_config_map = {};
 
-    // Note that these maps holds only entries for local PCIe chips.
-    std::unordered_map<chip_id_t, std::function<std::int32_t(tt_xy_pair)>> map_core_to_tlb_per_chip = {};
-    std::unordered_map<chip_id_t, bool> tlbs_init_per_chip = {};
-
-    std::unordered_map<std::string, std::int32_t> dynamic_tlb_config = {};
-    std::unordered_map<std::string, uint64_t> dynamic_tlb_ordering_modes = {};
     std::map<std::set<chip_id_t>, std::unordered_map<chip_id_t, std::vector<std::vector<int>>>> bcast_header_cache = {};
     bool perform_harvesting_on_sdesc = false;
-    tt_version eth_fw_version;  // Ethernet FW the driver is interfacing with
-    // Named Mutexes
-    static constexpr char NON_MMIO_MUTEX_NAME[] = "NON_MMIO";
-    static constexpr char ARC_MSG_MUTEX_NAME[] = "ARC_MSG";
-    static constexpr char MEM_BARRIER_MUTEX_NAME[] = "MEM_BAR";
-    // ERISC FW Version Required by UMD
-    static constexpr uint32_t SW_VERSION = 0x06060000;
 };
 
 }  // namespace tt::umd

@@ -71,9 +71,6 @@ add_subdirectory(common)
 add_subdirectory(device)
 add_subdirectory(src)
 
-option(TT_UMD_BUILD_TESTS "Enables build of tt_umd tests" OFF)
-if(TT_UMD_BUILD_TESTS)
-    add_subdirectory(tests)
-endif(TT_UMD_BUILD_TESTS)
+add_subdirectory(tests)
 
 include(packaging)

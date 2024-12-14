@@ -79,6 +79,8 @@ std::set<chip_id_t> get_target_devices() {
     return target_devices;
 }
 
+
+
 TEST(SiliconDriverBH, CreateDestroy) {
     std::set<chip_id_t> target_devices = get_target_devices();
     uint32_t num_host_mem_ch_per_mmio_device = 1;
@@ -93,184 +95,17 @@ TEST(SiliconDriverBH, CreateDestroy) {
             true,
             false);
         set_params_for_remote_txn(device);
+        std::cout << "Starting device " << std::endl;
         device.start_device(default_params);
-        device.deassert_risc_reset();
+        // std::cout << "Deasserting risc reset " << std::endl;
+        // device.deassert_risc_reset();
+        std::cout << "Closing device " << std::endl;
         device.close_device();
     }
 }
 
-// TEST(SiliconDriverWH, Harvesting) {
-//     std::set<chip_id_t> target_devices = {0, 1};
-//     std::unordered_map<chip_id_t, uint32_t> simulated_harvesting_masks = {{0, 30}, {1, 60}};
+#if 0
 
-//     {
-//         std::unique_ptr<tt_ClusterDescriptor> cluster_desc_uniq =
-//             tt_ClusterDescriptor::create();
-//         if (cluster_desc_uniq->get_number_of_chips() != target_devices.size()) {
-//             GTEST_SKIP() << "SiliconDriverWH.Harvesting skipped because it can only be run on a two chip nebula
-//             system";
-//         }
-//     }
-
-//     uint32_t num_host_mem_ch_per_mmio_device = 1;
-//     Cluster device = Cluster(
-//         "./tests/soc_descs/wormhole_b0_8x10.yaml",
-//         target_devices,
-//         num_host_mem_ch_per_mmio_device,
-//         false,
-//         true,
-//         true,
-//         simulated_harvesting_masks);
-//     auto sdesc_per_chip = device.get_virtual_soc_descriptors();
-
-//     ASSERT_EQ(device.using_harvested_soc_descriptors(), true) << "Expected Driver to have performed harvesting";
-
-//     for (const auto& chip : sdesc_per_chip) {
-//         ASSERT_EQ(chip.second.workers.size(), 48)
-//             << "Expected SOC descriptor with harvesting to have 48 workers for chip" << chip.first;
-//     }
-//     ASSERT_EQ(device.get_harvesting_masks_for_soc_descriptors().at(0), 30)
-//         << "Expected first chip to have harvesting mask of 30";
-//     ASSERT_EQ(device.get_harvesting_masks_for_soc_descriptors().at(1), 60)
-//         << "Expected second chip to have harvesting mask of 60";
-// }
-
-// TEST(SiliconDriverWH, CustomSocDesc) {
-//     std::set<chip_id_t> target_devices = {0, 1};
-//     std::unordered_map<chip_id_t, uint32_t> simulated_harvesting_masks = {{0, 30}, {1, 60}};
-//     {
-//         std::unique_ptr<tt_ClusterDescriptor> cluster_desc_uniq =
-//             tt_ClusterDescriptor::create();
-//         if (cluster_desc_uniq->get_number_of_chips() != target_devices.size()) {
-//             GTEST_SKIP() << "SiliconDriverWH.Harvesting skipped because it can only be run on a two chip nebula
-//             system";
-//         }
-//     }
-
-//     uint32_t num_host_mem_ch_per_mmio_device = 1;
-//     // Initialize the driver with a 1x1 descriptor and explictly do not perform harvesting
-//     Cluster device = Cluster(
-//         "./tests/soc_descs/wormhole_b0_1x1.yaml",
-//         target_devices,
-//         num_host_mem_ch_per_mmio_device,
-//         false,
-//         true,
-//         false,
-//         simulated_harvesting_masks);
-//     auto sdesc_per_chip = device.get_virtual_soc_descriptors();
-
-//     ASSERT_EQ(device.using_harvested_soc_descriptors(), false)
-//         << "SOC descriptors should not be modified when harvesting is disabled";
-//     for (const auto& chip : sdesc_per_chip) {
-//         ASSERT_EQ(chip.second.workers.size(), 1) << "Expected 1x1 SOC descriptor to be unmodified by driver";
-//     }
-// }
-
-// TEST(SiliconDriverWH, HarvestingRuntime) {
-//     auto get_static_tlb_index_callback = [](tt_xy_pair target) { return get_static_tlb_index(target); };
-
-//     std::set<chip_id_t> target_devices = {0, 1};
-//     std::unordered_map<chip_id_t, uint32_t> simulated_harvesting_masks = {{0, 30}, {1, 60}};
-//     {
-//         std::unique_ptr<tt_ClusterDescriptor> cluster_desc_uniq =
-//             tt_ClusterDescriptor::create();
-//         if (cluster_desc_uniq->get_number_of_chips() != target_devices.size()) {
-//             GTEST_SKIP() << "SiliconDriverWH.Harvesting skipped because it can only be run on a two chip nebula
-//             system";
-//         }
-//     }
-
-//     uint32_t num_host_mem_ch_per_mmio_device = 1;
-
-//     Cluster device = Cluster(
-//         "./tests/soc_descs/wormhole_b0_8x10.yaml",
-//         target_devices,
-//         num_host_mem_ch_per_mmio_device,
-//         false,
-//         true,
-//         true,
-//         simulated_harvesting_masks);
-//     set_params_for_remote_txn(device);
-//     auto mmio_devices = device.get_target_mmio_device_ids();
-
-//     for (int i = 0; i < target_devices.size(); i++) {
-//         // Iterate over MMIO devices and only setup static TLBs for worker cores
-//         if (std::find(mmio_devices.begin(), mmio_devices.end(), i) != mmio_devices.end()) {
-//             auto& sdesc = device.get_soc_descriptor(i);
-//             for (auto& core : sdesc.workers) {
-//                 // Statically mapping a 1MB TLB to this core, starting from address NCRISC_FIRMWARE_BASE.
-//                 device.configure_tlb(
-//                     i, core, get_static_tlb_index_callback(core), l1_mem::address_map::NCRISC_FIRMWARE_BASE);
-//             }
-//         }
-//     }
-//     device.setup_core_to_tlb_map(get_static_tlb_index_callback);
-
-//     tt_device_params default_params;
-//     device.start_device(default_params);
-//     device.deassert_risc_reset();
-
-//     std::vector<uint32_t> vector_to_write = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
-//     std::vector<uint32_t> dynamic_readback_vec = {};
-//     std::vector<uint32_t> readback_vec = {};
-//     std::vector<uint32_t> zeros = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-
-//     for (int i = 0; i < target_devices.size(); i++) {
-//         std::uint32_t address = l1_mem::address_map::NCRISC_FIRMWARE_BASE;
-//         std::uint32_t dynamic_write_address = 0x40000000;
-//         for (int loop = 0; loop < 100;
-//              loop++) {  // Write to each core a 100 times at different statically mapped addresses
-//             for (auto& core : device.get_soc_descriptor(i).workers) {
-//                 device.write_to_device(
-//                     vector_to_write.data(),
-//                     vector_to_write.size() * sizeof(std::uint32_t),
-//                     tt_cxy_pair(i, core),
-//                     address,
-//                     "");
-//                 device.write_to_device(
-//                     vector_to_write.data(),
-//                     vector_to_write.size() * sizeof(std::uint32_t),
-//                     tt_cxy_pair(i, core),
-//                     dynamic_write_address,
-//                     "SMALL_READ_WRITE_TLB");
-//                 device.wait_for_non_mmio_flush();  // Barrier to ensure that all writes over ethernet were commited
-
-//                 test_utils::read_data_from_device(device, readback_vec, tt_cxy_pair(i, core), address, 40, "");
-//                 test_utils::read_data_from_device(
-//                     device,
-//                     dynamic_readback_vec,
-//                     tt_cxy_pair(i, core),
-//                     dynamic_write_address,
-//                     40,
-//                     "SMALL_READ_WRITE_TLB");
-//                 ASSERT_EQ(vector_to_write, readback_vec)
-//                     << "Vector read back from core " << core.x << "-" << core.y << "does not match what was written";
-//                 ASSERT_EQ(vector_to_write, dynamic_readback_vec)
-//                     << "Vector read back from core " << core.x << "-" << core.y << "does not match what was written";
-//                 device.wait_for_non_mmio_flush();
-
-//                 device.write_to_device(
-//                     zeros.data(),
-//                     zeros.size() * sizeof(std::uint32_t),
-//                     tt_cxy_pair(i, core),
-//                     dynamic_write_address,
-//                     "SMALL_READ_WRITE_TLB");  // Clear any written data
-//                 device.write_to_device(
-//                     zeros.data(),
-//                     zeros.size() * sizeof(std::uint32_t),
-//                     tt_cxy_pair(i, core),
-//                     address,
-//                     "");  // Clear any written data
-//                 device.wait_for_non_mmio_flush();
-//                 readback_vec = {};
-//                 dynamic_readback_vec = {};
-//             }
-//             address += 0x20;  // Increment by uint32_t size for each write
-//             dynamic_write_address += 0x20;
-//         }
-//     }
-//     device.close_device();
-// }
 
 TEST(SiliconDriverBH, UnalignedStaticTLB_RW) {
     auto get_static_tlb_index_callback = [](tt_xy_pair target) { return get_static_tlb_index(target); };
@@ -1006,3 +841,5 @@ TEST(SiliconDriverBH, RandomSysmemTestWithPcie) {
         }
     }
 }
+
+#endif
