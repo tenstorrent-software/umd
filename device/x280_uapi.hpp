@@ -1,7 +1,9 @@
 /* SPDX-FileCopyrightText: © 2024 Tenstorrent Inc.
  * SPDX-License-Identifier: GPL-2.0-only
  */
+
 #pragma once
+#include <iostream>
 
 #include <fcntl.h>
 #include <unistd.h>
@@ -183,7 +185,7 @@ class NOC
 public:
     NOC()
         : driver()
-        , windows_2M(driver, TWO_MEGS, 10)
+        , windows_2M(driver, TWO_MEGS, 100)
         , windows_128G(driver, FOUR_GIGS, 5)
     {
     }
@@ -226,14 +228,14 @@ public:
 
     uint32_t read32(uint32_t x, uint32_t y, uint64_t addr)
     {
-        uint32_t val;
-        read(x, y, addr, &val, sizeof(val));
-        return val;
+        uint32_t value;
+        read(x, y, addr, &value, sizeof(value));
+        return value;
     }
 
     void write32(uint32_t x, uint32_t y, uint64_t addr, uint32_t val)
     {
-        write(x, y, addr, &val, sizeof(val));
+        write_block(x, y, addr, &val, sizeof(val));
     }
 
     void read(uint32_t x, uint32_t y, uint64_t addr, void* dst, size_t size)
@@ -250,6 +252,10 @@ public:
             throw std::runtime_error("Read crosses window boundary");
         }
 
+        if (size <= 8 && (addr & (size - 1))) {
+            throw std::runtime_error("Unaligned read");
+        }
+
         noc_window_config config{
             .addr = window_addr,
             .x_end = x,
@@ -258,10 +264,28 @@ public:
 
         auto window = get_window(window_size, config);
         void* src = window->data() + offset;
-        std::memcpy(dst, src, size);
+
+        switch (size) {
+        case 1:
+            *reinterpret_cast<uint8_t*>(dst) = *reinterpret_cast<volatile uint8_t*>(src);
+            return;
+        case 2:
+            *reinterpret_cast<uint16_t*>(dst) = *reinterpret_cast<volatile uint16_t*>(src);
+            return;
+        case 4:
+            *reinterpret_cast<uint32_t*>(dst) = *reinterpret_cast<volatile uint32_t*>(src);
+            return;
+        case 8:
+            *reinterpret_cast<uint64_t*>(dst) = *reinterpret_cast<volatile uint64_t*>(src);
+            return;
+        }
+
+        for (size_t i = 0; i < size; ++i) {
+            reinterpret_cast<uint8_t*>(dst)[i] = reinterpret_cast<volatile uint8_t*>(src)[i];
+        }
     }
 
-    void write(uint32_t x, uint32_t y, uint64_t addr, const void* src, size_t size)
+    void write_block(uint32_t x, uint32_t y, uint64_t addr, const void* src, size_t size)
     {
         size_t window_size = size > TWO_MEGS ? FOUR_GIGS : TWO_MEGS;
         uint64_t window_addr = addr & ~(window_size - 1);
@@ -275,14 +299,37 @@ public:
             throw std::runtime_error("Read crosses window boundary");
         }
 
+        if (size <= 8 && (addr & (size - 1))) {
+            throw std::runtime_error("Unaligned write");
+        }
+
         noc_window_config config{
             .addr = window_addr,
             .x_end = x,
             .y_end = y,
+            .strict_order = 1,
         };
 
         auto window = get_window(window_size, config);
         void* dst = window->data() + offset;
-        std::memcpy(dst, src, size);
+
+        switch (size) {
+        case 1:
+            *reinterpret_cast<volatile uint8_t*>(dst) = *reinterpret_cast<const uint8_t*>(src);
+            return;
+        case 2:
+            *reinterpret_cast<volatile uint16_t*>(dst) = *reinterpret_cast<const uint16_t*>(src);
+            return;
+        case 4:
+            *reinterpret_cast<volatile uint32_t*>(dst) = *reinterpret_cast<const uint32_t*>(src);
+            return;
+        case 8:
+            *reinterpret_cast<volatile uint64_t*>(dst) = *reinterpret_cast<const uint64_t*>(src);
+            return;
+        }
+
+        for (size_t i = 0; i < size; ++i) {
+            reinterpret_cast<volatile uint8_t*>(dst)[i] = reinterpret_cast<const uint8_t*>(src)[i];
+        }
     }
 };
