@@ -180,8 +180,21 @@ ClusterX280::ClusterX280(
     NOC_DRIVER = std::make_unique<NOC>();
     SYSMEM = NOC_DRIVER->allocate_window(FOUR_GIGS, sysmem_noc_config);
 
-
     cluster_desc = tt_ClusterDescriptor::create();
+    target_devices_in_cluster.insert(0);
+
+    std::vector<std::string> core_types = {
+        "ARC",
+        "DRAM",
+        "ACTIVE_ETH",
+        "IDLE_ETH",
+        "PCIE",
+        "TENSIX",
+        "ROUTER_ONLY",
+        "HARVESTED",
+        "ETH",
+        "WORKER",
+    };
 
     for (auto& chip_id : target_devices) {
         log_assert(
@@ -211,6 +224,12 @@ ClusterX280::ClusterX280(
         clean_system_resources,
         perform_harvesting,
         simulated_harvesting_masks);
+
+    std::cout << "What are we dealing with here??" << std::endl;
+    for (const auto& [coord, core] : get_soc_descriptor(0).cores) {
+        std::cout << coord.x << " " << coord.y << " " << (int)core.type << " " << core_types[(int)core.type] << std::endl;
+    }
+
 }
 
 void ClusterX280::configure_active_ethernet_cores_for_mmio_device(
@@ -678,6 +697,7 @@ inline bool valid_tensix_broadcast_grid(
     return t6_bcast_rows_complete || t6_bcast_rows_empty;
 }
 
+// Kind of a puzzling name...
 void ClusterX280::ethernet_broadcast_write(
     const void* mem_ptr,
     uint32_t size_in_bytes,
@@ -686,26 +706,28 @@ void ClusterX280::ethernet_broadcast_write(
     const std::set<uint32_t>& rows_to_exclude,
     std::set<uint32_t>& cols_to_exclude,
     const std::string& fallback_tlb,
-    bool use_virtual_coords) {
-    {
-        // Broadcast not supported. Implement this at the software level as a for loop
-        std::vector<tt_cxy_pair> cores_to_write = {};
-        for (const auto& chip : target_devices_in_cluster) {
-            if (chips_to_exclude.find(chip) != chips_to_exclude.end()) {
-                continue;
-            }
-            for (const auto& core : get_soc_descriptor(chip).cores) {
-                if (cols_to_exclude.find(core.first.x) == cols_to_exclude.end() and
-                    rows_to_exclude.find(core.first.y) == rows_to_exclude.end() and
-                    core.second.type != CoreType::HARVESTED) {
-                    write_to_device(
-                        mem_ptr, size_in_bytes, tt_cxy_pair(chip, core.first.x, core.first.y), address, fallback_tlb);
-                }
-            }
+    bool use_virtual_coords)
+{
+    for (const auto& [coord, core] : get_soc_descriptor(0).cores) {
+        auto x = coord.x;
+        auto y = coord.y;
+
+        if (cols_to_exclude.count(x)) {
+            continue;
         }
+        if (rows_to_exclude.count(y)) {
+            continue;
+        }
+        if (core.type == CoreType::HARVESTED) {
+            continue;
+        }
+        auto value = *reinterpret_cast<const uint32_t*>(mem_ptr);
+        write_to_device(mem_ptr, size_in_bytes, tt_cxy_pair(0, x, y), address, fallback_tlb);
     }
 }
 
+// TODO: you really need to sort this out, in this new X280 context that you've
+// thrust this code into, it makes even less sense than it did before.
 void ClusterX280::broadcast_write_to_cluster(
     const void* mem_ptr,
     uint32_t size_in_bytes,
@@ -713,7 +735,8 @@ void ClusterX280::broadcast_write_to_cluster(
     const std::set<chip_id_t>& chips_to_exclude,
     std::set<uint32_t>& rows_to_exclude,
     std::set<uint32_t>& cols_to_exclude,
-    const std::string& fallback_tlb) {
+    const std::string& fallback_tlb)
+{
     if (arch_name == tt::ARCH::BLACKHOLE) {
         auto architecture_implementation = tt::umd::architecture_implementation::create(arch_name);
         if (cols_to_exclude.find(0) == cols_to_exclude.end() or cols_to_exclude.find(9) == cols_to_exclude.end()) {
@@ -862,16 +885,9 @@ void ClusterX280::insert_host_to_device_barrier(
 void ClusterX280::init_membars() {
     for (const auto& chip : target_devices_in_cluster) {
         if (cluster_desc->is_chip_mmio_capable(chip)) {
-            set_membar_flag(
-                chip,
-                workers_per_chip.at(chip),
-                tt_MemBarFlag::RESET,
-                l1_address_params.tensix_l1_barrier_base,
-                "LARGE_WRITE_TLB");
-            set_membar_flag(
-                chip, eth_cores, tt_MemBarFlag::RESET, l1_address_params.eth_l1_barrier_base, "LARGE_WRITE_TLB");
-            set_membar_flag(
-                chip, dram_cores, tt_MemBarFlag::RESET, dram_address_params.DRAM_BARRIER_BASE, "LARGE_WRITE_TLB");
+            set_membar_flag(chip, workers_per_chip.at(chip), tt_MemBarFlag::RESET, l1_address_params.tensix_l1_barrier_base, "LARGE_WRITE_TLB");
+            set_membar_flag(chip, eth_cores, tt_MemBarFlag::RESET, l1_address_params.eth_l1_barrier_base, "LARGE_WRITE_TLB");
+            set_membar_flag(chip, dram_cores, tt_MemBarFlag::RESET, dram_address_params.DRAM_BARRIER_BASE, "LARGE_WRITE_TLB");
         }
     }
 }
@@ -952,7 +968,7 @@ void ClusterX280::write_to_device(const void* mem_ptr, uint32_t size, tt_cxy_pai
     auto x = core.x;
     auto y = core.y;
     auto src = reinterpret_cast<const uint8_t*>(mem_ptr);
-    NOC_DRIVER->write(x, y, addr, src, size);
+    NOC_DRIVER->write_block(x, y, addr, src, size);
 }
 
 int ClusterX280::arc_msg(
@@ -975,42 +991,38 @@ void ClusterX280::send_tensix_risc_reset_to_core(const tt_cxy_pair& core, const 
     tt_driver_atomics::sfence();
 }
 
-void ClusterX280::broadcast_tensix_risc_reset_to_cluster(const TensixSoftResetOptions& soft_resets) {
-    {
-        auto valid = soft_resets & ALL_TENSIX_SOFT_RESET;
-        uint32_t valid_val = (std::underlying_type<TensixSoftResetOptions>::type)valid;
-        std::set<chip_id_t> chips_to_exclude = {};
-        std::set<uint32_t> rows_to_exclude;
-        std::set<uint32_t> columns_to_exclude;
-        if (arch_name == tt::ARCH::BLACKHOLE) {
-            rows_to_exclude = {0, 1};
-            columns_to_exclude = {0, 8, 9};
-        } else {
-            rows_to_exclude = {0, 6};
-            columns_to_exclude = {0, 5};
-        }
-        std::string fallback_tlb = "LARGE_WRITE_TLB";
-        broadcast_write_to_cluster(
-            &valid_val,
-            sizeof(uint32_t),
-            0xFFB121B0,
-            chips_to_exclude,
-            rows_to_exclude,
-            columns_to_exclude,
-            fallback_tlb);
+// TODO: get rid of this in this form
+void ClusterX280::broadcast_tensix_risc_reset_to_cluster(const TensixSoftResetOptions& soft_resets)
+{
+    auto valid = soft_resets & ALL_TENSIX_SOFT_RESET;
+    uint32_t valid_val = (std::underlying_type<TensixSoftResetOptions>::type)valid;
+    std::set<chip_id_t> chips_to_exclude = {};
+    std::set<uint32_t> rows_to_exclude;
+    std::set<uint32_t> columns_to_exclude;
+    if (arch_name == tt::ARCH::BLACKHOLE) {
+        rows_to_exclude = {0, 1};
+        columns_to_exclude = {0, 8, 9};
+    } else {
+        rows_to_exclude = {0, 6};
+        columns_to_exclude = {0, 5};
     }
+    std::string fallback_tlb = "LARGE_WRITE_TLB";
+    broadcast_write_to_cluster(
+        &valid_val,
+        sizeof(uint32_t),
+        0xFFB121B0,
+        chips_to_exclude,
+        rows_to_exclude,
+        columns_to_exclude,
+        fallback_tlb);
 }
 
 std::set<chip_id_t> ClusterX280::get_target_remote_device_ids() { return target_remote_chips; }
 
-void ClusterX280::deassert_resets_and_set_power_state() {
-    // Assert tensix resets on all chips in cluster
-    broadcast_tensix_risc_reset_to_cluster(TENSIX_ASSERT_SOFT_RESET);
-}
 
-void ClusterX280::start_device(const tt_device_params& device_params) {
+void ClusterX280::start_device(const tt_device_params& device_params)
+{
     init_membars();
-    deassert_resets_and_set_power_state();
 }
 
 void ClusterX280::close_device() {
