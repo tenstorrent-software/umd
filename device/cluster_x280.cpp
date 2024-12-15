@@ -224,12 +224,6 @@ ClusterX280::ClusterX280(
         clean_system_resources,
         perform_harvesting,
         simulated_harvesting_masks);
-
-    std::cout << "What are we dealing with here??" << std::endl;
-    for (const auto& [coord, core] : get_soc_descriptor(0).cores) {
-        std::cout << coord.x << " " << coord.y << " " << (int)core.type << " " << core_types[(int)core.type] << std::endl;
-    }
-
 }
 
 void ClusterX280::configure_active_ethernet_cores_for_mmio_device(
@@ -650,7 +644,7 @@ void* ClusterX280::host_dma_address(uint64_t offset, chip_id_t, uint16_t channel
     assert(SYSMEM);
 
     uint8_t* base = SYSMEM->data();
-    offset += (1 << 30) * channel;
+    offset += (1ULL << 30) * channel;
 
     return base + offset;
 }
@@ -885,6 +879,8 @@ void ClusterX280::insert_host_to_device_barrier(
 void ClusterX280::init_membars() {
     for (const auto& chip : target_devices_in_cluster) {
         if (cluster_desc->is_chip_mmio_capable(chip)) {
+            // TODO: you should make sure these are all populated properly
+            // Why are these address params in different places?
             set_membar_flag(chip, workers_per_chip.at(chip), tt_MemBarFlag::RESET, l1_address_params.tensix_l1_barrier_base, "LARGE_WRITE_TLB");
             set_membar_flag(chip, eth_cores, tt_MemBarFlag::RESET, l1_address_params.eth_l1_barrier_base, "LARGE_WRITE_TLB");
             set_membar_flag(chip, dram_cores, tt_MemBarFlag::RESET, dram_address_params.DRAM_BARRIER_BASE, "LARGE_WRITE_TLB");
@@ -911,8 +907,7 @@ void ClusterX280::l1_membar(
                     log_fatal("Can only insert an L1 Memory barrier on Tensix or Ethernet cores.");
                 }
             }
-            insert_host_to_device_barrier(
-                chip, workers_to_sync, l1_address_params.tensix_l1_barrier_base, fallback_tlb);
+            insert_host_to_device_barrier( chip, workers_to_sync, l1_address_params.tensix_l1_barrier_base, fallback_tlb);
             insert_host_to_device_barrier(chip, eth_to_sync, l1_address_params.eth_l1_barrier_base, fallback_tlb);
         } else {
             // Insert barrier on all cores with L1

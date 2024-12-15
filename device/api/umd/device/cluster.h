@@ -1052,7 +1052,6 @@ private:
     void perform_harvesting_on_soc_descriptors();
     void populate_cores();
     void set_pcie_power_state(tt_DevicePowerState state);
-    void deassert_resets_and_set_power_state();
     uint32_t get_harvested_noc_rows(uint32_t harvesting_mask);
 
     void pcie_broadcast_write(

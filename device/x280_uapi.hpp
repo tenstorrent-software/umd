@@ -3,7 +3,6 @@
  */
 
 #pragma once
-#include <iostream>
 
 #include <fcntl.h>
 #include <unistd.h>
@@ -280,9 +279,10 @@ public:
             return;
         }
 
-        for (size_t i = 0; i < size; ++i) {
-            reinterpret_cast<uint8_t*>(dst)[i] = reinterpret_cast<volatile uint8_t*>(src)[i];
-        }
+        // for (size_t i = 0; i < size; ++i) {
+        //     reinterpret_cast<uint8_t*>(dst)[i] = reinterpret_cast<volatile uint8_t*>(src)[i];
+        // }
+        memcpy(dst, src, size);
     }
 
     void write_block(uint32_t x, uint32_t y, uint64_t addr, const void* src, size_t size)
@@ -328,8 +328,11 @@ public:
             return;
         }
 
-        for (size_t i = 0; i < size; ++i) {
-            reinterpret_cast<volatile uint8_t*>(dst)[i] = reinterpret_cast<const uint8_t*>(src)[i];
-        }
+        // for (size_t i = 0; i < size; ++i) {
+        //     reinterpret_cast<volatile uint8_t*>(dst)[i] = reinterpret_cast<const uint8_t*>(src)[i];
+        // }
+        memcpy(dst, src, size);
     }
 };
+// debug, single byte [==========] 6 tests from 1 test suite ran. (138228 ms total)
+// debug, memcpy      [==========] 6 tests from 1 test suite ran. (36946 ms total)
