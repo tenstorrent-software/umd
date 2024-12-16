@@ -148,6 +148,7 @@ TEST(ApiChipTest, SpecifyLegalDeassertRiscResetOnCore) {
     tt_cxy_pair chip_core_coord = get_tensix_chip_core_coord(umd_cluster);
 
     umd_cluster->assert_risc_reset_at_core(chip_core_coord);
+    std::this_thread::sleep_for(std::chrono::seconds(5));
     TensixSoftResetOptions deassert_val = ALL_TRISC_SOFT_RESET | TensixSoftResetOptions::STAGGERED_START;
     umd_cluster->deassert_risc_reset_at_core(chip_core_coord, deassert_val);
     umd_cluster->l1_membar(chip_core_coord.chip, "LARGE_WRITE_TLB");
@@ -155,7 +156,7 @@ TEST(ApiChipTest, SpecifyLegalDeassertRiscResetOnCore) {
     uint32_t soft_reset_reg_addr = 0xFFB121B0;
     uint32_t risc_reset_val;
     // Wait for 1sec
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    std::this_thread::sleep_for(std::chrono::seconds(5));
 
     umd_cluster->read_from_device(&risc_reset_val, chip_core_coord, soft_reset_reg_addr, sizeof(uint32_t), "REG_TLB");
     EXPECT_EQ(static_cast<uint32_t>(deassert_val), risc_reset_val);
