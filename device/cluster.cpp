@@ -247,20 +247,11 @@ void Cluster::create_device(
     for (const chip_id_t& logical_device_id : target_mmio_device_ids) {
         auto pci_device = get_tt_device(logical_device_id)->get_pci_device();
 
-        uint16_t pcie_device_id = pci_device->get_pci_device_id();
-        uint32_t pcie_revision = pci_device->get_pci_revision();
-        // TODO: get rid of this, it doesn't make any sense.
-        // Update: I did get rid of it and it broke Metal CI, which is passing
-        // tests that ask for more hugepages than exist.  That's wrong, but it
-        // isn't fixed yet, so until then...
-        int num_host_mem_channels =
-            get_available_num_host_mem_channels(num_host_mem_ch_per_mmio_device, pcie_device_id, pcie_revision);
-
         log_debug(
             LogSiliconDriver,
             "Using {} Hugepages/NumHostMemChannels for PCIDevice (logical_device_id: {} pci_interface_id: {} "
             "device_id: 0x{:x} revision: {})",
-            num_host_mem_channels,
+            num_host_mem_ch_per_mmio_device,
             logical_device_id,
             pci_device->get_device_num(),
             pci_device->get_device_num(),
@@ -271,7 +262,7 @@ void Cluster::create_device(
         // MT: Initial BH - hugepages will fail init
         // For using silicon driver without workload to query mission mode params, no need for hugepage.
         if (!skip_driver_allocs) {
-            bool hugepages_initialized = pci_device->init_hugepage(num_host_mem_channels);
+            bool hugepages_initialized = pci_device->init_hugepage(num_host_mem_ch_per_mmio_device);
             // Large writes to remote chips require hugepages to be initialized.
             // Conservative assert - end workload if remote chips present but hugepages not initialized (failures caused
             // if using remote only for small transactions)
