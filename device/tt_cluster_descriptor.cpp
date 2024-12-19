@@ -738,11 +738,11 @@ void tt_ClusterDescriptor::load_chips_from_connectivity_descriptor(YAML::Node &y
             auto &chip = chip_board_type.first;
             BoardType board_type;
             if (chip_board_type.second == "e75") {
-                board_type = BoardType::E75;
+                board_type = BoardType::UNKNOWN;
             } else if (chip_board_type.second == "e150") {
                 board_type = BoardType::E150;
             } else if (chip_board_type.second == "e300") {
-                board_type = BoardType::E300;
+                board_type = BoardType::UNKNOWN;
             } else if (chip_board_type.second == "n150") {
                 board_type = BoardType::N150;
             } else if (chip_board_type.second == "n300") {
