@@ -123,11 +123,13 @@ tt::ARCH PciDeviceInfo::get_arch() const {
     std::string path = "/dev/tenstorrent/";
 
     if (!std::filesystem::exists(path)) {
+        log_info(LogSiliconDriver, "device path not found {}", path);
+
         return device_ids;
     }
     for (const auto &entry : std::filesystem::directory_iterator(path)) {
         std::string filename = entry.path().filename().string();
-
+        log_info(LogSiliconDriver, "device {}", filename);
         // TODO: this will skip any device that has a non-numeric name, which
         // is probably what we want longer-term (i.e. a UUID or something).
         if (std::all_of(filename.begin(), filename.end(), ::isdigit)) {
