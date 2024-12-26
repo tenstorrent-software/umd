@@ -864,7 +864,8 @@ private:
         bool perform_harvesting,
         std::unordered_map<chip_id_t, uint32_t> simulated_harvesting_masks);
     tt::umd::CoreCoord translate_chip_coord(
-        const chip_id_t chip, const tt::umd::CoreCoord core_coord, const CoordSystem coord_system) const;
+        const chip_id_t chip_id, const tt::umd::CoreCoord core_coord, const CoordSystem coord_system) const;
+    tt_xy_pair get_harvested_coord_translation(const chip_id_t chip_id, tt_xy_pair coord) const;
 
     // State variables
     tt_device_dram_address_params dram_address_params;
@@ -900,7 +901,6 @@ private:
     std::unordered_map<chip_id_t, int> active_eth_core_idx_per_chip = {};
     std::unordered_map<chip_id_t, bool> noc_translation_enabled_for_chip = {};
     std::map<std::string, std::shared_ptr<boost::interprocess::named_mutex>> hardware_resource_mutex_map = {};
-    std::unordered_map<chip_id_t, std::unordered_map<tt_xy_pair, tt_xy_pair>> harvested_coord_translation = {};
     std::unordered_map<chip_id_t, std::uint32_t> num_rows_harvested = {};
     std::unordered_map<chip_id_t, std::unordered_set<tt_xy_pair>> workers_per_chip = {};
     std::unordered_set<tt_xy_pair> eth_cores = {};

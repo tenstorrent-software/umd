@@ -251,14 +251,11 @@ void Cluster::create_device(
                 log_warning(LogSiliconDriver, "No hugepage mapping at device {}.", logical_device_id);
             }
         }
-        // translation layer for harvested coords. Default is identity map
-        harvested_coord_translation.insert({logical_device_id, create_harvested_coord_translation(arch_name, true)});
     }
 
     for (const chip_id_t& chip : all_chip_ids_) {
         // Initialize identity mapping for Non-MMIO chips as well
         if (!cluster_desc->is_chip_mmio_capable(chip)) {
-            harvested_coord_translation.insert({chip, create_harvested_coord_translation(arch_name, true)});
             flush_non_mmio_per_chip[chip] = false;
         }
     }
@@ -331,12 +328,6 @@ void Cluster::construct_cluster(
             translation_tables_en = noc_translation_enabled_for_chip.begin()->second;
         }
 
-        if (translation_tables_en) {
-            harvested_coord_translation.clear();
-            for (const chip_id_t& chip : all_chip_ids_) {
-                harvested_coord_translation.insert({chip, create_harvested_coord_translation(arch_name, false)});
-            }
-        }
         log_assert(
             performed_harvesting ? translation_tables_en : true,
             "Using a harvested WH cluster with NOC translation disabled.");
@@ -810,108 +801,8 @@ void Cluster::check_pcie_device_initialized(int device_id) {
     }
 }
 
-std::unordered_map<tt_xy_pair, tt_xy_pair> Cluster::create_harvested_coord_translation(
-    const tt::ARCH arch, bool identity_map) {
-    log_assert(
-        identity_map ? true : (arch != tt::ARCH::GRAYSKULL), "NOC Translation can only be performed for WH devices");
-    std::unordered_map<tt_xy_pair, tt_xy_pair> translation_table = {};
-
-    tt_xy_pair grid_size;
-    std::vector<uint32_t> T6_x = {};
-    std::vector<uint32_t> T6_y = {};
-    std::vector<tt_xy_pair> ethernet = {};
-    // Store device specific data for GS and WH depending on arch
-    if (arch == tt::ARCH::GRAYSKULL) {
-        grid_size = tt_xy_pair(13, 12);
-        T6_x = {12, 1, 11, 2, 10, 3, 9, 4, 8, 5, 7, 6};
-        T6_y = {11, 1, 10, 2, 9, 3, 8, 4, 7, 5};
-    } else if (arch == tt::ARCH::BLACKHOLE) {
-        grid_size = tt_xy_pair(17, 12);
-        T6_x = {16, 1, 15, 2, 14, 3, 13, 4, 12, 5, 11, 6, 10, 7};
-        T6_y = {11, 2, 10, 3, 9, 4, 8, 5, 7, 6};
-    } else {
-        grid_size = tt_xy_pair(10, 12);
-        T6_x = {1, 2, 3, 4, 6, 7, 8, 9};
-        T6_y = {1, 2, 3, 4, 5, 7, 8, 9, 10, 11};
-        // clang-format off
-        ethernet = {{1, 0}, {2, 0}, {3, 0}, {4, 0}, {6, 0}, {7, 0}, {8, 0}, {9, 0},
-                    {1, 6}, {2, 6}, {3, 6}, {4, 6}, {6, 6}, {7, 6}, {8, 6}, {9, 6}};
-        // clang-format on
-    }
-
-    if (identity_map) {
-        // When device is initialized, assume no harvesting and create an identity map for cores
-        // This flow is always used for GS, since there is no hardware harvesting
-        for (int x = 0; x < grid_size.x; x++) {
-            for (int y = 0; y < grid_size.y; y++) {
-                tt_xy_pair curr_core = tt_xy_pair(x, y);
-                translation_table.insert({curr_core, curr_core});
-            }
-        }
-        return translation_table;
-    }
-
-    // If this function is called with identity_map = false, we have perform NOC translation
-    // This can only happen for WH devices
-    // Setup coord translation for workers. Map all worker cores
-    for (int x = 0; x < grid_size.x; x++) {
-        for (int y = 0; y < grid_size.y; y++) {
-            tt_xy_pair curr_core = tt_xy_pair(x, y);
-
-            if (std::find(T6_x.begin(), T6_x.end(), x) != T6_x.end() &&
-                std::find(T6_y.begin(), T6_y.end(), y) != T6_y.end()) {
-                // This is a worker core. Apply translation for WH.
-                tt_xy_pair harvested_worker;
-                if (x >= 1 && x <= 4) {
-                    harvested_worker.x = x + 17;
-                } else if (x <= 9 && x > 5) {
-                    harvested_worker.x = x + 16;
-                } else {
-                    log_assert(false, "Invalid WH worker x coord {} when creating translation tables.", x);
-                }
-
-                if (y >= 1 && y <= 5) {
-                    harvested_worker.y = y + 17;
-                } else if (y <= 11 && y > 6) {
-                    harvested_worker.y = y + 16;
-                } else {
-                    log_assert(false, "Invalid WH worker y coord {} when creating translation tables.", y);
-                }
-                translation_table.insert({curr_core, harvested_worker});
-            }
-
-            else if (std::find(ethernet.begin(), ethernet.end(), curr_core) != ethernet.end()) {
-                // This is an eth core. Apply translation for WH.
-                tt_xy_pair harvested_eth_core;
-                if (x >= 1 && x <= 4) {
-                    harvested_eth_core.x = x + 17;
-                } else if (x <= 9 && x > 5) {
-                    harvested_eth_core.x = x + 16;
-                } else {
-                    log_assert(false, "Invalid WH eth_core x coord {} when creating translation tables.", x);
-                }
-
-                if (y == 0) {
-                    harvested_eth_core.y = y + 16;
-                } else if (y == 6) {
-                    harvested_eth_core.y = y + 11;
-                } else {
-                    log_assert(false, "Invalid WH eth_core y coord {} when creating translation tables.", y);
-                }
-                translation_table.insert({curr_core, harvested_eth_core});
-            }
-
-            else {
-                // All other cores for WH are not translated in case of harvesting.
-                translation_table.insert({curr_core, curr_core});
-            }
-        }
-    }
-    return translation_table;
-}
-
 void Cluster::translate_to_noc_table_coords(chip_id_t device_id, std::size_t& r, std::size_t& c) {
-    auto translated_coords = harvested_coord_translation[device_id].at(tt_xy_pair(c, r));
+    auto translated_coords = get_harvested_coord_translation(device_id, tt_xy_pair(c, r));
     c = translated_coords.x;
     r = translated_coords.y;
 }
@@ -946,10 +837,12 @@ void Cluster::broadcast_pcie_tensix_risc_reset(chip_id_t chip_id, const TensixSo
     auto [soft_reset_reg, _] = tt_device->set_dynamic_tlb_broadcast(
         architecture_implementation->get_reg_tlb(),
         architecture_implementation->get_tensix_soft_reset_addr(),
-        harvested_coord_translation.at(chip_id).at(tt_xy_pair(0, 0)),
-        harvested_coord_translation.at(chip_id).at(tt_xy_pair(
-            architecture_implementation->get_grid_size_x() - 1,
-            architecture_implementation->get_grid_size_y() - 1 - num_rows_harvested.at(chip_id))),
+        get_harvested_coord_translation(chip_id, tt_xy_pair(0, 0)),
+        get_harvested_coord_translation(
+            chip_id,
+            tt_xy_pair(
+                architecture_implementation->get_grid_size_x() - 1,
+                architecture_implementation->get_grid_size_y() - 1 - num_rows_harvested.at(chip_id))),
         TLB_DATA::Posted);
     tt_device->write_regs(soft_reset_reg, 1, &valid);
     tt_driver_atomics::sfence();
@@ -1101,7 +994,7 @@ void Cluster::write_device_memory(
         while (size_in_bytes > 0) {
             auto [mapped_address, tlb_size] = dev->set_dynamic_tlb(
                 tlb_index,
-                harvested_coord_translation.at(target.chip).at(target),
+                get_harvested_coord_translation(target.chip, target),
                 address,
                 get_tlb_manager(target.chip)->dynamic_tlb_ordering_modes_.at(fallback_tlb));
             uint32_t transfer_size = std::min((uint64_t)size_in_bytes, tlb_size);
@@ -1154,7 +1047,7 @@ void Cluster::read_device_memory(
         while (size_in_bytes > 0) {
             auto [mapped_address, tlb_size] = dev->set_dynamic_tlb(
                 tlb_index,
-                harvested_coord_translation.at(target.chip).at(target),
+                get_harvested_coord_translation(target.chip, target),
                 address,
                 get_tlb_manager(target.chip)->dynamic_tlb_ordering_modes_.at(fallback_tlb));
             uint32_t transfer_size = std::min((uint64_t)size_in_bytes, tlb_size);
@@ -1324,7 +1217,7 @@ tlb_configuration Cluster::get_tlb_configuration(const chip_id_t chip, CoreCoord
 void Cluster::configure_tlb(
     chip_id_t logical_device_id, tt_xy_pair core, int32_t tlb_index, uint64_t address, uint64_t ordering) {
     get_tlb_manager(logical_device_id)
-        ->configure_tlb(core, harvested_coord_translation.at(logical_device_id).at(core), tlb_index, address, ordering);
+        ->configure_tlb(core, get_harvested_coord_translation(logical_device_id, core), tlb_index, address, ordering);
 }
 
 void Cluster::configure_tlb(
@@ -1414,7 +1307,7 @@ int Cluster::test_setup_interface() {
         uint32_t mapped_reg = tt_device
                                   ->set_dynamic_tlb(
                                       tt_device->get_architecture_implementation()->get_reg_tlb(),
-                                      harvested_coord_translation.at(chip_id).at(tt_xy_pair(0, 0)),
+                                      get_harvested_coord_translation(chip_id, tt_xy_pair(0, 0)),
                                       0xffb20108)
                                   .bar_offset;
 
@@ -1426,7 +1319,7 @@ int Cluster::test_setup_interface() {
         uint32_t mapped_reg = tt_device
                                   ->set_dynamic_tlb(
                                       tt_device->get_architecture_implementation()->get_reg_tlb(),
-                                      harvested_coord_translation.at(chip_id).at(tt_xy_pair(1, 0)),
+                                      get_harvested_coord_translation(chip_id, tt_xy_pair(1, 0)),
                                       0xffb20108)
                                   .bar_offset;
 
@@ -1440,7 +1333,7 @@ int Cluster::test_setup_interface() {
         // uint32_t mapped_reg = tt_device
         //                           ->set_dynamic_tlb(
         //                               tt_device->get_architecture_implementation()->get_reg_tlb(),
-        //                               harvested_coord_translation.at(chip_id).at(tt_xy_pair(1, 0)),
+        //                               get_harvested_coord_translation(chip_id, tt_xy_pair(1, 0)),
         //                               0xffb20108)
         //                           .bar_offset;
 
@@ -2493,8 +2386,8 @@ void Cluster::pcie_broadcast_write(
         auto [mapped_address, tlb_size] = tt_device->set_dynamic_tlb_broadcast(
             tlb_index,
             addr,
-            harvested_coord_translation.at(chip).at(start),
-            harvested_coord_translation.at(chip).at(end),
+            get_harvested_coord_translation(chip, start),
+            get_harvested_coord_translation(chip, end),
             get_tlb_manager(chip)->dynamic_tlb_ordering_modes_.at(fallback_tlb));
         uint64_t transfer_size = std::min((uint64_t)size_in_bytes, tlb_size);
         tt_device->write_block(mapped_address, transfer_size, buffer_addr);
@@ -3005,8 +2898,8 @@ void Cluster::read_mmio_device_register(
     const scoped_lock<named_mutex> lock(*get_mutex(fallback_tlb, core.chip));
     log_debug(LogSiliconDriver, "  dynamic tlb_index: {}", tlb_index);
 
-    auto [mapped_address, tlb_size] = tt_device->set_dynamic_tlb(
-        tlb_index, harvested_coord_translation.at(core.chip).at(core), addr, TLB_DATA::Strict);
+    auto [mapped_address, tlb_size] =
+        tt_device->set_dynamic_tlb(tlb_index, get_harvested_coord_translation(core.chip, core), addr, TLB_DATA::Strict);
     // Align block to 4bytes if needed.
     auto aligned_buf = tt_4_byte_aligned_buffer(mem_ptr, size);
     tt_device->read_regs(mapped_address, aligned_buf.block_size / sizeof(std::uint32_t), aligned_buf.local_storage);
@@ -3025,8 +2918,8 @@ void Cluster::write_mmio_device_register(
     const scoped_lock<named_mutex> lock(*get_mutex(fallback_tlb, core.chip));
     log_debug(LogSiliconDriver, "  dynamic tlb_index: {}", tlb_index);
 
-    auto [mapped_address, tlb_size] = tt_device->set_dynamic_tlb(
-        tlb_index, harvested_coord_translation.at(core.chip).at(core), addr, TLB_DATA::Strict);
+    auto [mapped_address, tlb_size] =
+        tt_device->set_dynamic_tlb(tlb_index, get_harvested_coord_translation(core.chip, core), addr, TLB_DATA::Strict);
     // Align block to 4bytes if needed.
     auto aligned_buf = tt_4_byte_aligned_buffer(mem_ptr, size);
     if (aligned_buf.input_size != aligned_buf.block_size) {
@@ -3350,4 +3243,9 @@ tt::umd::CoreCoord Cluster::translate_chip_coord(
     return get_soc_descriptor(chip).translate_coord_to(core_coord, coord_system);
 }
 
+tt_xy_pair Cluster::get_harvested_coord_translation(const chip_id_t chip_id, tt_xy_pair coord) const {
+    // TODO: Does this work for ETH Cores, were those translated previously?
+    return (tt_xy_pair)translate_chip_coord(
+        chip_id, {coord.x, coord.y, CoreType::TENSIX, CoordSystem::VIRTUAL}, CoordSystem::TRANSLATED);
+}
 }  // namespace tt::umd
