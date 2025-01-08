@@ -24,6 +24,8 @@
 constexpr size_t FOUR_GIGS = 1ULL << 32;
 constexpr size_t TWO_MEGS = 1ULL << 21;
 
+namespace tt::umd {
+
 class NocWindow
 {
     enum Kind { Size2M, Size128G };
@@ -336,3 +338,5 @@ public:
 };
 // debug, single byte [==========] 6 tests from 1 test suite ran. (138228 ms total)
 // debug, memcpy      [==========] 6 tests from 1 test suite ran. (36946 ms total)
+
+} // namespace tt::umd
