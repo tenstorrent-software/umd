@@ -25,6 +25,8 @@
 #include "umd/device/types/cluster_descriptor_types.h"
 #include "umd/device/types/cluster_types.h"
 
+#include "x280_uapi.hpp"
+
 using TLB_DATA = tt::umd::tlb_data;
 
 namespace boost::interprocess {
@@ -617,11 +619,11 @@ public:
     /**
      * If the tlbs are initialized, returns a tuple with the TLB base address and its size
      */
-    std::optional<std::tuple<uint32_t, uint32_t>> get_tlb_data_from_target(const tt_cxy_pair& target);
+    std::optional<std::tuple<uint64_t, uint32_t>> get_tlb_data_from_target(const tt_cxy_pair& target);
     /**
      * This API allows you to write directly to device memory that is addressable by a static TLB
      */
-    std::function<void(uint32_t, uint32_t, const uint8_t*)> get_fast_pcie_static_tlb_write_callable(int device_id);
+    std::function<void(uint64_t, uint32_t, const uint8_t*)> get_fast_pcie_static_tlb_write_callable(int device_id);
 
     /**
      * Provide fast write access to a statically-mapped TLB.
@@ -901,6 +903,9 @@ private:
  * Implements APIs to communicate with a physical Tenstorrent Device.
  */
 class ClusterX280 : public tt_device {
+    // Sigh.
+    std::vector<std::unique_ptr<NocWindow>> noc_windows_;
+
 public:
     /**
      * Cluster constructor.
@@ -980,11 +985,11 @@ public:
     /**
      * If the tlbs are initialized, returns a tuple with the TLB base address and its size
      */
-    std::optional<std::tuple<uint32_t, uint32_t>> get_tlb_data_from_target(const tt_cxy_pair& target);
+    std::optional<std::tuple<uint64_t, uint32_t>> get_tlb_data_from_target(const tt_cxy_pair& target);
     /**
      * This API allows you to write directly to device memory that is addressable by a static TLB
      */
-    std::function<void(uint32_t, uint32_t, const uint8_t*)> get_fast_pcie_static_tlb_write_callable(int device_id);
+    std::function<void(uint64_t, uint32_t, const uint8_t*)> get_fast_pcie_static_tlb_write_callable(int device_id);
 
     /**
      * Provide fast write access to a statically-mapped TLB.

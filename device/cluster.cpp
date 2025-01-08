@@ -1051,11 +1051,11 @@ std::vector<chip_id_t> Cluster::detect_available_device_ids() {
     return PCIDevice::enumerate_devices();
 }
 
-std::function<void(uint32_t, uint32_t, const uint8_t*)> Cluster::get_fast_pcie_static_tlb_write_callable(
+std::function<void(uint64_t, uint32_t, const uint8_t*)> Cluster::get_fast_pcie_static_tlb_write_callable(
     int device_id) {
     TTDevice* dev = get_tt_device(device_id);
 
-    const auto callable = [dev](uint32_t byte_addr, uint32_t num_bytes, const uint8_t* buffer_addr) {
+    const auto callable = [dev](uint64_t byte_addr, uint32_t num_bytes, const uint8_t* buffer_addr) {
         dev->write_block(byte_addr, num_bytes, buffer_addr);
     };
 
@@ -1348,7 +1348,7 @@ Cluster::~Cluster() {
     dynamic_tlb_ordering_modes.clear();
 }
 
-std::optional<std::tuple<uint32_t, uint32_t>> Cluster::get_tlb_data_from_target(const tt_cxy_pair& target) {
+std::optional<std::tuple<uint64_t, uint32_t>> Cluster::get_tlb_data_from_target(const tt_cxy_pair& target) {
     std::int32_t tlb_index = 0;
     std::optional<std::tuple<std::uint32_t, std::uint32_t>> tlb_data;
 

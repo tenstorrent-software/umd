@@ -27,6 +27,15 @@ dram:
       [9-5, 9-7, 9-6],
   ]
 
+dram_preferred_eth_endpoint:
+  [ 0-1, 0-2, 0-4, 0-5, 9-4, 9-5 ]
+
+dram_preferred_worker_endpoint:
+  [ 0-11, 0-3, 0-8, 0-6, 9-8, 9-6 ]
+
+dram_address_offsets:
+  [ 0, 0, 0, 0, 0, 0 ]
+
 eth:
   []
 

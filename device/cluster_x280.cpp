@@ -39,15 +39,9 @@
 #include "umd/device/types/arch.h"
 #include "yaml-cpp/yaml.h"
 
-#include "x280_uapi.hpp"
 
 using namespace tt;
 using namespace tt::umd;
-
-static const uint32_t MSG_ERROR_REPLY = 0xFFFFFFFF;
-
-// Remove 256MB from full 1GB for channel 3 (iATU limitation)
-static constexpr uint32_t HUGEPAGE_CHANNEL_3_SIZE_LIMIT = 805306368;
 
 static std::unique_ptr<NOC> NOC_DRIVER;
 static std::unique_ptr<NocWindow> SYSMEM;
@@ -512,25 +506,40 @@ int ClusterX280::detect_number_of_chips() {
 // Can be used before instantiating a silicon device
 std::vector<chip_id_t> ClusterX280::detect_available_device_ids() { return {0}; }
 
-std::function<void(uint32_t, uint32_t, const uint8_t*)> ClusterX280::get_fast_pcie_static_tlb_write_callable(
-    int device_id) {
-    TTDevice* dev = get_tt_device(device_id);
+std::optional<std::tuple<uint64_t, uint32_t>> ClusterX280::get_tlb_data_from_target(const tt_cxy_pair& target) {
+    // This is a total mess - horrible hacks to support a horrible API.
+    // Once I get it working, I'll clean it up to something that is actually sane.
+    noc_window_config config{};
+    config.x_end = target.x;
+    config.y_end = target.y;
+    auto window = NOC_DRIVER->allocate_window(TWO_MEGS, config);
+    uint8_t* base = window->data();
+    size_t size = window->size();
+    noc_windows_.push_back(std::move(window));
+    return std::make_tuple((uint64_t)base, size);
+}
 
-    const auto callable = [dev](uint32_t byte_addr, uint32_t num_bytes, const uint8_t* buffer_addr) {
-        dev->write_block(byte_addr, num_bytes, buffer_addr);
+
+std::function<void(uint64_t, uint32_t, const uint8_t*)> ClusterX280::get_fast_pcie_static_tlb_write_callable(int device_id) {
+    const auto callable = [](uint64_t byte_addr, uint32_t num_bytes, const uint8_t* src) {
+        uint8_t* dst = reinterpret_cast<uint8_t*>(byte_addr);
+        std::memcpy(dst, src, num_bytes);
     };
 
     return callable;
 }
 
 tt::Writer ClusterX280::get_static_tlb_writer(tt_cxy_pair target) {
-    // TODO(JMS): basically need to return a NocWindow here.  Should I
-    // modify tt::Writer?  Might just make a subclass right here to squirrel
-    // away the window in...
+    noc_window_config config{};
+    config.x_end = target.x;
+    config.y_end = target.y;
+    auto window = NOC_DRIVER->allocate_window(TWO_MEGS, config);
 
+    uint8_t* base = window->data();
+    uint32_t tlb_size = window->size();
 
-    uint8_t* base = 0;
-    uint32_t tlb_size = 0;
+    // HACK: tt::Writer should really own it, but I don't want to do that right now.
+    noc_windows_.push_back(std::move(window));
     return tt::Writer(base, tlb_size);
 }
 
@@ -544,53 +553,6 @@ std::map<int, int> ClusterX280::get_clocks() {
 ClusterX280::~ClusterX280() {
     cluster_desc.reset();
     tlb_config_map.clear();
-}
-
-std::optional<std::tuple<uint32_t, uint32_t>> ClusterX280::get_tlb_data_from_target(const tt_cxy_pair& target) {
-    // Why, oh why is this a public method?
-    // I hope Metal doesn't use this >:(
-    // UPDATE: OF COURSE IT DOES
-    //
-    // Metal also says,
-    //  tt::umd::Cluster *device = dynamic_cast<tt::umd::Cluster *>(driver_.get());
-    //
-    // Ok - this is looking like a big mess.  First of all,
-    // get_tlb_data_from_target returns the offset (into BAR0) and size of a TLB
-    // that's aimed at target.  It's really contrived, calling an application
-    // provided function to get the index.  Address does not appear to be
-    // touched, i.e. this scheme is completely broken if you have > 1 TLB aimed
-    // at a single core, but I don't think that matters (my guess without
-    // running any experiments is that the TLBs in question are all aimed at the
-    // bottom of a core's address space).
-    //
-    // So what is Metal doing with this?!  Here's the code:
-    #if 0
-                const std::tuple<uint32_t, uint32_t> completion_interface_tlb_data =
-                tt::Cluster::instance()
-                    .get_tlb_data(tt_cxy_pair(
-                        completion_queue_writer_core.chip,
-                        completion_queue_writer_virtual.x,
-                        completion_queue_writer_virtual.y))
-                    .value();
-            auto [completion_tlb_offset, completion_tlb_size] = completion_interface_tlb_data;
-            this->completion_byte_addrs[cq_id] = completion_tlb_offset + completion_q_rd_ptr % completion_tlb_size;
-
-    ... later ...
-
-            uint32_t read_ptr_and_toggle =
-            cq_interface.completion_fifo_rd_ptr | (cq_interface.completion_fifo_rd_toggle << 31);
-        this->fast_write_callable(this->completion_byte_addrs[cq_id], 4, (uint8_t*)&read_ptr_and_toggle);
-    #endif
-    // Ok - becoming more clear. get_tlb_data_from_target works in conjunction
-    // with UMD's get_fast_pcie_static_tlb_write_callable.  Looks like (?) the
-    // address is relative to BAR0?  I'll have to double check.
-    //
-    // So there's this disgusting scheme and the tt::Writer thing to sort out.
-    // Ultimately, both go back through mechanisms controlled by us, with the
-    // former leaking a bunch of implementation details to the application.
-    // Have to figure out what to do about this, maybe the BBE-era static TLB
-    // mapping at beginning of life is the easiest thing for now.
-    return std::optional<std::tuple<uint32_t, uint32_t>>();
 }
 
 // JMS: exposing this as part of the API was design error
