@@ -36,6 +36,7 @@
 #include <utility>
 #include <vector>
 
+#include "api/umd/device/blackhole_implementation.h"
 #include "api/umd/device/tt_core_coordinates.h"
 #include "logger.hpp"
 #include "umd/device/architecture_implementation.h"
@@ -3364,6 +3365,55 @@ void Cluster::set_barrier_address_params(const barrier_address_params& barrier_a
 tt::umd::CoreCoord Cluster::translate_chip_coord(
     const chip_id_t chip, const tt::umd::CoreCoord core_coord, const CoordSystem coord_system) const {
     return get_soc_descriptor(chip).translate_coord_to(core_coord, coord_system);
+}
+
+void Cluster::bh_telemetry() {
+    for (const auto& chip : chips_) {
+        std::cout << "Chip id " << chip.first << std::endl;
+        const CoreCoord arc_core = get_soc_descriptor(chip.first).get_cores(CoreType::ARC)[0];
+        std::cout << "arc core " << arc_core.x << " " << arc_core.y << std::endl;
+        uint32_t telemetry_table;
+        read_from_device(&telemetry_table, chip.first, arc_core, tt::umd::blackhole::SCRATCH_RAM_13, sizeof(uint32_t), "LARGE_READ_TLB");
+        std::cout << std::hex;
+        std::cout << "telemetry table " << telemetry_table << std::endl;
+        uint32_t version;
+        read_from_device(&version, chip.first, arc_core, telemetry_table, sizeof(uint32_t), "LARGE_READ_TLB");
+        std::cout << "version " << version << std::endl;
+        uint32_t entry_count;
+        read_from_device(&entry_count, chip.first, arc_core, telemetry_table + sizeof(uint32_t), sizeof(uint32_t), "LARGE_READ_TLB");
+        std::cout << "entry count " << entry_count << std::endl;
+        uint32_t telemetry;
+        read_from_device(&telemetry, chip.first, arc_core, tt::umd::blackhole::SCRATCH_RAM_12, sizeof(uint32_t), "LARGE_READ_TLB");
+        std::cout << "telemetry " << telemetry << std::endl;
+
+        uint32_t count = entry_count;
+        uint32_t tag_table_index = telemetry_table + 2 * sizeof(uint32_t);
+        std::cout << std::dec;
+        for (uint32_t entry = 0; entry < entry_count; entry++)  {
+            
+            std::cout << "entry " << entry << std::endl;
+
+            uint16_t tag_val;
+            read_from_device(&tag_val, chip.first, arc_core, tag_table_index, sizeof(uint16_t), "LARGE_READ_TLB");
+
+            uint16_t offset_val;
+            read_from_device(&offset_val, chip.first, arc_core, tag_table_index + sizeof(uint16_t), sizeof(uint16_t), "LARGE_READ_TLB");
+
+            std::cout << "tag val " << tag_val << std::endl;
+            std::cout << "offset val " << offset_val << std::endl;  
+
+            uint32_t telemetry_val;
+            read_from_device(&telemetry_val, chip.first, arc_core, telemetry + offset_val * sizeof(uint32_t), sizeof(uint32_t), "LARGE_READ_TLB");
+
+            std::cout << std::hex;
+            std::cout << "telemetry val " << telemetry_val << std::endl;
+            std::cout << std::dec;
+
+            std::cout << "---" << std::endl;
+
+            tag_table_index+= sizeof(uint32_t);
+        }
+    }
 }
 
 }  // namespace tt::umd

@@ -197,6 +197,9 @@ static const size_t pcie_translated_coordinate_start_y = 24;
 static const size_t dram_translated_coordinate_start_x = 17;
 static const size_t dram_translated_coordinate_start_y = 12;
 
+static const uint32_t SCRATCH_RAM_12 = 0x80030430;
+static const uint32_t SCRATCH_RAM_13 = 0x80030434;
+
 /*
  * Ge the PCIE core that can be used for communication with host
  * based on the board type and whether the chip is remote or not.

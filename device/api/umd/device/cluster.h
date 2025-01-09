@@ -729,6 +729,8 @@ public:
     virtual void dram_membar(
         const chip_id_t chip, const std::unordered_set<tt::umd::CoreCoord>& cores, const std::string& fallback_tlb);
 
+    void bh_telemetry();
+
     // Destructor
     virtual ~Cluster();
 
