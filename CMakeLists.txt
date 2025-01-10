@@ -70,8 +70,9 @@ add_compile_options(
 add_subdirectory(common)
 add_subdirectory(device)
 add_subdirectory(src)
-
 add_subdirectory(tests)
+
+target_include_directories(device PUBLIC ${PROJECT_SOURCE_DIR}/common)
 
 include(packaging)
 

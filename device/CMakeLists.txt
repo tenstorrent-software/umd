@@ -32,7 +32,8 @@ target_sources(
         blackhole/blackhole_coordinate_manager.cpp
         xy_pair.cpp
 )
-
+include_directories(..)
+include_directories(../common)
 target_include_directories(
     device
     PUBLIC
@@ -57,23 +58,6 @@ target_link_libraries(
         yaml-cpp::yaml-cpp
 )
 
-install(
-    TARGETS
-        device
-    EXPORT ${PROJECT_NAME}Targets
-    ARCHIVE
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    LIBRARY
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        COMPONENT dev
-)
-
-install(
-    EXPORT ${PROJECT_NAME}Targets
-    FILE ${PROJECT_NAME}Targets.cmake
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}
-    NAMESPACE ${PROJECT_NAME}::
-)
 
 # Add a custom command to copy the library to build/lib
 add_custom_command(
