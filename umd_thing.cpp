@@ -7,9 +7,10 @@ int main()
         "/root/blackhole_x280.yaml",
         std::set<int>{0}, // target_devices
         1, // num_host_mem_ch_per_mmio_device
-        false,
-        true,
-        false);
+        false, // skip_driver_allocs
+        true,  // clean_system_resources
+        false  // perform_harvesting
+    );
 
     device.assert_risc_reset();
     device.close_device();

@@ -678,8 +678,6 @@ void ClusterX280::ethernet_broadcast_write(
             continue;
         }
         auto value = *reinterpret_cast<const uint32_t*>(mem_ptr);
-        std::cout << "Writing 0x" << std::hex << value << " to " << std::dec << x << ", " << y
-                  << " at 0x" << std::hex << address << std::dec << std::endl;
         write_to_device(mem_ptr, size_in_bytes, tt_cxy_pair(0, x, y), address, fallback_tlb);
     }
 }

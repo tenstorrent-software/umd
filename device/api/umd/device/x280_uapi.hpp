@@ -20,6 +20,8 @@
 #include <queue>
 #include <stdexcept>
 
+#include "logger_.hpp"
+
 
 constexpr size_t FOUR_GIGS = 1ULL << 32;
 constexpr size_t TWO_MEGS = 1ULL << 21;
@@ -318,21 +320,26 @@ public:
         switch (size) {
         case 1:
             *reinterpret_cast<volatile uint8_t*>(dst) = *reinterpret_cast<const uint8_t*>(src);
+            UMD_INFO("Writing 1 byte to {},{} at {:#x}", x, y, addr);
             return;
         case 2:
             *reinterpret_cast<volatile uint16_t*>(dst) = *reinterpret_cast<const uint16_t*>(src);
+            UMD_INFO("Writing 2 byte to {},{} at {:#x}", x, y, addr);
             return;
         case 4:
             *reinterpret_cast<volatile uint32_t*>(dst) = *reinterpret_cast<const uint32_t*>(src);
+            UMD_INFO("Writing 4 byte to {},{} at {:#x}", x, y, addr);
             return;
         case 8:
             *reinterpret_cast<volatile uint64_t*>(dst) = *reinterpret_cast<const uint64_t*>(src);
+            UMD_INFO("Writing 8 byte to {},{} at {:#x}", x, y, addr);
             return;
         }
 
         // for (size_t i = 0; i < size; ++i) {
         //     reinterpret_cast<volatile uint8_t*>(dst)[i] = reinterpret_cast<const uint8_t*>(src)[i];
         // }
+        UMD_INFO("Writing {} byte to {},{} at {:#x}", size, x, y, addr);
         memcpy(dst, src, size);
     }
 };
