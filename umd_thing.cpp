@@ -12,6 +12,8 @@ int main()
         false  // perform_harvesting
     );
 
+    tt_device_params default_params;
+    device.start_device(default_params);
     device.assert_risc_reset();
     device.close_device();
 }
