@@ -22,10 +22,9 @@ void TLBManager::configure_tlb(
     log_assert(
         ordering == tlb_data::Strict || ordering == tlb_data::Posted || ordering == tlb_data::Relaxed,
         "Invalid ordering specified in Cluster::configure_tlb");
-    log_debug(
+    log_info(
         LogSiliconDriver,
-        "Configuring TLB for chip: {} core: {} tlb_index: {} address: {} ordering: {}",
-        logical_device_id,
+        "Configuring TLB for core: {} tlb_index: {} address: {} ordering: {}",
         core.str(),
         tlb_index,
         address,
