@@ -1,9 +1,6 @@
-add_library(umd_common INTERFACE)
-add_library(${PROJECT_NAME}::Common ALIAS umd_common)
 
-target_sources(
+add_library(
     umd_common
-    INTERFACE
         assert.hpp
         backtrace.hpp
         gtest_initializer.hpp # FIXME: this should be tucked away with the tests
@@ -13,3 +10,9 @@ target_sources(
 )
 
 target_include_directories(umd_common INTERFACE .)
+
+target_link_libraries(umd_common
+    spdlog::spdlog_header_only
+    fmt::fmt-header-only
+)
+add_library(${PROJECT_NAME}::Common ALIAS umd_common)
