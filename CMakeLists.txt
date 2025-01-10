@@ -74,3 +74,6 @@ add_subdirectory(src)
 add_subdirectory(tests)
 
 include(packaging)
+
+add_executable(umd_thing umd_thing.cpp)
+target_link_libraries(umd_thing PRIVATE device fmt::fmt-header-only)
