@@ -39,6 +39,7 @@
 #include "umd/device/types/arch.h"
 #include "yaml-cpp/yaml.h"
 
+#include "x280_uapi.hpp"
 
 using namespace tt;
 using namespace tt::umd;

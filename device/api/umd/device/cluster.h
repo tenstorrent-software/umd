@@ -25,7 +25,6 @@
 #include "umd/device/types/cluster_descriptor_types.h"
 #include "umd/device/types/cluster_types.h"
 
-#include "x280_uapi.hpp"
 
 using TLB_DATA = tt::umd::tlb_data;
 
@@ -902,6 +901,7 @@ private:
  * Silicon Driver Class, derived from the tt_device class
  * Implements APIs to communicate with a physical Tenstorrent Device.
  */
+class NocWindow;
 class ClusterX280 : public tt_device {
     // Sigh.
     std::vector<std::unique_ptr<NocWindow>> noc_windows_;
