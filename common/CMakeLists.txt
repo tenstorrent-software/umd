@@ -9,11 +9,10 @@ add_library(
         logger_.cpp
 )
 
-#target_include_directories(.)
+target_include_directories(umd_common INTERFACE .)
 
 target_link_libraries(umd_common
     spdlog::spdlog_header_only
     fmt::fmt-header-only
 )
 add_library(${PROJECT_NAME}::Common ALIAS umd_common)
-
