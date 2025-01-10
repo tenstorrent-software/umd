@@ -46,9 +46,8 @@ target_include_directories(
 
 target_link_libraries(
     device
-    PUBLIC
-        umd::Common
     PRIVATE
+        umd::Common
         umd::Firmware
         rt
         Boost::interprocess
