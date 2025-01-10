@@ -678,6 +678,8 @@ void ClusterX280::ethernet_broadcast_write(
             continue;
         }
         auto value = *reinterpret_cast<const uint32_t*>(mem_ptr);
+        std::cout << "Writing 0x" << std::hex << value << " to " << std::dec << x << ", " << y
+                  << " at 0x" << std::hex << address << std::dec << std::endl;
         write_to_device(mem_ptr, size_in_bytes, tt_cxy_pair(0, x, y), address, fallback_tlb);
     }
 }
@@ -693,53 +695,54 @@ void ClusterX280::broadcast_write_to_cluster(
     std::set<uint32_t>& cols_to_exclude,
     const std::string& fallback_tlb)
 {
-    if (arch_name == tt::ARCH::BLACKHOLE) {
-        auto architecture_implementation = tt::umd::architecture_implementation::create(arch_name);
-        if (cols_to_exclude.find(0) == cols_to_exclude.end() or cols_to_exclude.find(9) == cols_to_exclude.end()) {
-            log_assert(
-                !tensix_or_eth_in_broadcast(cols_to_exclude, architecture_implementation.get()),
-                "Cannot broadcast to tensix/ethernet and DRAM simultaneously on Blackhole.");
-            if (cols_to_exclude.find(0) == cols_to_exclude.end()) {
-                // When broadcast includes column zero do not exclude anything
-                std::set<uint32_t> unsafe_rows = {};
-                std::set<uint32_t> cols_to_exclude_for_col_0_bcast = cols_to_exclude;
-                std::set<uint32_t> rows_to_exclude_for_col_0_bcast = rows_to_exclude;
-                cols_to_exclude_for_col_0_bcast.insert(9);
-                rows_to_exclude_for_col_0_bcast.insert(unsafe_rows.begin(), unsafe_rows.end());
-                ethernet_broadcast_write(
-                    mem_ptr,
-                    size_in_bytes,
-                    address,
-                    chips_to_exclude,
-                    rows_to_exclude_for_col_0_bcast,
-                    cols_to_exclude_for_col_0_bcast,
-                    fallback_tlb,
-                    false);
-            }
-            if (cols_to_exclude.find(9) == cols_to_exclude.end()) {
-                std::set<uint32_t> cols_to_exclude_for_col_9_bcast = cols_to_exclude;
-                cols_to_exclude_for_col_9_bcast.insert(0);
-                ethernet_broadcast_write(
-                    mem_ptr,
-                    size_in_bytes,
-                    address,
-                    chips_to_exclude,
-                    rows_to_exclude,
-                    cols_to_exclude_for_col_9_bcast,
-                    fallback_tlb,
-                    false);
-            }
-        } else {
+#if 0
+    auto architecture_implementation = tt::umd::architecture_implementation::create(arch_name);
+    if (cols_to_exclude.find(0) == cols_to_exclude.end() or cols_to_exclude.find(9) == cols_to_exclude.end()) {
+        log_assert(
+            !tensix_or_eth_in_broadcast(cols_to_exclude, architecture_implementation.get()),
+            "Cannot broadcast to tensix/ethernet and DRAM simultaneously on Blackhole.");
+        if (cols_to_exclude.find(0) == cols_to_exclude.end()) {
+            // When broadcast includes column zero do not exclude anything
+            std::set<uint32_t> unsafe_rows = {};
+            std::set<uint32_t> cols_to_exclude_for_col_0_bcast = cols_to_exclude;
+            std::set<uint32_t> rows_to_exclude_for_col_0_bcast = rows_to_exclude;
+            cols_to_exclude_for_col_0_bcast.insert(9);
+            rows_to_exclude_for_col_0_bcast.insert(unsafe_rows.begin(), unsafe_rows.end());
+            ethernet_broadcast_write(
+                mem_ptr,
+                size_in_bytes,
+                address,
+                chips_to_exclude,
+                rows_to_exclude_for_col_0_bcast,
+                cols_to_exclude_for_col_0_bcast,
+                fallback_tlb,
+                false);
+        }
+        if (cols_to_exclude.find(9) == cols_to_exclude.end()) {
+            std::set<uint32_t> cols_to_exclude_for_col_9_bcast = cols_to_exclude;
+            cols_to_exclude_for_col_9_bcast.insert(0);
             ethernet_broadcast_write(
                 mem_ptr,
                 size_in_bytes,
                 address,
                 chips_to_exclude,
                 rows_to_exclude,
-                cols_to_exclude,
+                cols_to_exclude_for_col_9_bcast,
                 fallback_tlb,
                 false);
         }
+    } else
+#endif
+    {
+        ethernet_broadcast_write(
+            mem_ptr,
+            size_in_bytes,
+            address,
+            chips_to_exclude,
+            rows_to_exclude,
+            cols_to_exclude,
+            fallback_tlb,
+            false);
     }
 }
 
@@ -760,8 +763,8 @@ void ClusterX280::write_to_sysmem(const void* src, uint32_t size, uint64_t addr,
     assert(SYSMEM);
 
     uint8_t* base = SYSMEM->data();
-    size_t offset = (1 << 30) * channel;
-    if (offset + addr + size > SYSMEM->size()) {
+    size_t offset = (1ULL << 30) * channel;
+    if (offset + addr + size >= SYSMEM->size()) {
         log_fatal(
             "Attempted to write to sysmem at offset {} with size {} which exceeds the size of sysmem {}",
             offset,
@@ -776,9 +779,9 @@ void ClusterX280::read_from_sysmem(void* dst, uint64_t addr, uint16_t channel, u
     assert(SYSMEM);
 
     uint8_t* base = SYSMEM->data();
-    size_t offset = (1 << 30) * channel;
+    size_t offset = (1ULL << 30) * channel;
 
-    if (offset + addr + size > SYSMEM->size()) {
+    if (offset + addr + size >= SYSMEM->size()) {
         log_fatal(
             "Attempted to read from sysmem at offset {} with size {} which exceeds the size of sysmem {}",
             offset,
@@ -964,6 +967,7 @@ void ClusterX280::broadcast_tensix_risc_reset_to_cluster(const TensixSoftResetOp
         columns_to_exclude = {0, 5};
     }
     std::string fallback_tlb = "LARGE_WRITE_TLB";
+    std::cout << "Broadcast reset to cluster" << std::endl;
     broadcast_write_to_cluster(
         &valid_val,
         sizeof(uint32_t),
