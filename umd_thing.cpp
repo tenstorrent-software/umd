@@ -11,8 +11,14 @@ int main()
         true,  // clean_system_resources
         false  // perform_harvesting
     );
-
+    tt_device_l1_address_params l1_address_params;
     tt_device_params default_params;
+
+    l1_address_params.tensix_l1_barrier_base = 12;
+    l1_address_params.eth_l1_barrier_base = 0x7ffe0;
+    l1_address_params.fw_version_addr = 0x210;
+
+    device.set_device_l1_address_params(l1_address_params);
     device.start_device(default_params);
     device.assert_risc_reset();
     device.close_device();

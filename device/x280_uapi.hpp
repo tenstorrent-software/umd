@@ -270,15 +270,19 @@ public:
 
         switch (size) {
         case 1:
+            UMD_INFO("Reading 1 byte from {},{} at {:#x}", x, y, addr);
             *reinterpret_cast<uint8_t*>(dst) = *reinterpret_cast<volatile uint8_t*>(src);
             return;
         case 2:
+            UMD_INFO("Reading 2 bytes from {},{} at {:#x}", x, y, addr);
             *reinterpret_cast<uint16_t*>(dst) = *reinterpret_cast<volatile uint16_t*>(src);
             return;
         case 4:
+            UMD_INFO("Reading 4 bytes from {},{} at {:#x}", x, y, addr);
             *reinterpret_cast<uint32_t*>(dst) = *reinterpret_cast<volatile uint32_t*>(src);
             return;
         case 8:
+            UMD_INFO("Reading 8 bytes from {},{} at {:#x}", x, y, addr);
             *reinterpret_cast<uint64_t*>(dst) = *reinterpret_cast<volatile uint64_t*>(src);
             return;
         }
@@ -286,6 +290,7 @@ public:
         // for (size_t i = 0; i < size; ++i) {
         //     reinterpret_cast<uint8_t*>(dst)[i] = reinterpret_cast<volatile uint8_t*>(src)[i];
         // }
+        UMD_INFO("Reading {} bytess from {},{} at {:#x}", size, x, y, addr);
         memcpy(dst, src, size);
     }
 
@@ -324,22 +329,22 @@ public:
             return;
         case 2:
             *reinterpret_cast<volatile uint16_t*>(dst) = *reinterpret_cast<const uint16_t*>(src);
-            UMD_INFO("Writing 2 byte to {},{} at {:#x}", x, y, addr);
+            UMD_INFO("Writing 2 bytes to {},{} at {:#x}", x, y, addr);
             return;
         case 4:
             *reinterpret_cast<volatile uint32_t*>(dst) = *reinterpret_cast<const uint32_t*>(src);
-            UMD_INFO("Writing 4 byte to {},{} at {:#x}", x, y, addr);
+            UMD_INFO("Writing 4 bytes to {},{} at {:#x}", x, y, addr);
             return;
         case 8:
             *reinterpret_cast<volatile uint64_t*>(dst) = *reinterpret_cast<const uint64_t*>(src);
-            UMD_INFO("Writing 8 byte to {},{} at {:#x}", x, y, addr);
+            UMD_INFO("Writing 8 bytes to {},{} at {:#x}", x, y, addr);
             return;
         }
 
         // for (size_t i = 0; i < size; ++i) {
         //     reinterpret_cast<volatile uint8_t*>(dst)[i] = reinterpret_cast<const uint8_t*>(src)[i];
         // }
-        UMD_INFO("Writing {} byte to {},{} at {:#x}", size, x, y, addr);
+        UMD_INFO("Writing {} bytess to {},{} at {:#x}", size, x, y, addr);
         memcpy(dst, src, size);
     }
 };
