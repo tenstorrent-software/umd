@@ -316,11 +316,14 @@ public:
             .addr = window_addr,
             .x_end = x,
             .y_end = y,
-            .strict_order = 1,
         };
 
         auto window = get_window(window_size, config);
         void* dst = window->data() + offset;
+
+        UMD_INFO("About to write to {},{} at {:#x}", x, y, addr);
+        UMD_INFO("Window address: {:#x}", window_addr);
+        UMD_INFO("Offset: {:#x}", offset);
 
         switch (size) {
         case 1:
