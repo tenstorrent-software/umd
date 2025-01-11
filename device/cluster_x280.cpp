@@ -16,12 +16,12 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
-#include <iterator>
 #include <map>
 #include <memory>
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -40,6 +40,7 @@
 #include "yaml-cpp/yaml.h"
 
 #include "x280_uapi.hpp"
+#include "logger_.hpp"
 
 using namespace tt;
 using namespace tt::umd;
@@ -679,6 +680,7 @@ void ClusterX280::ethernet_broadcast_write(
             continue;
         }
         auto value = *reinterpret_cast<const uint32_t*>(mem_ptr);
+        UMD_INFO("Writing to device at {}, value {:#x}", i, value);
         write_to_device(mem_ptr, size_in_bytes, tt_cxy_pair(0, x, y), address, fallback_tlb);
     }
 }

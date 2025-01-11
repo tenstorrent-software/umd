@@ -9,7 +9,7 @@ int main()
         1, // num_host_mem_ch_per_mmio_device
         false, // skip_driver_allocs
         true,  // clean_system_resources
-        false  // perform_harvesting
+        true  // perform_harvesting
     );
     tt_device_l1_address_params l1_address_params;
     tt_device_params default_params;
