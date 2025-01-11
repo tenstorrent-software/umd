@@ -680,7 +680,7 @@ void ClusterX280::ethernet_broadcast_write(
             continue;
         }
         auto value = *reinterpret_cast<const uint32_t*>(mem_ptr);
-        UMD_INFO("Writing to device at {}, value {:#x}", i, value);
+        UMD_INFO("Writing to device at value {:#x}", value);
         write_to_device(mem_ptr, size_in_bytes, tt_cxy_pair(0, x, y), address, fallback_tlb);
     }
 }
