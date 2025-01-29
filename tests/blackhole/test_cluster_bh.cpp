@@ -98,6 +98,29 @@ TEST(SiliconDriverBH, CreateDestroy) {
     }
 }
 
+TEST(SiliconDriverBH, CreateWithAlternateCachingFlags) {
+    std::set<chip_id_t> target_devices = get_target_devices();
+    uint32_t num_host_mem_ch_per_mmio_device = 1;
+    tt_device_params default_params;
+
+    static const uint32_t kMapWC = 0x2;
+    static const uint32_t kMapUC = 0x4;
+    auto cook_flags = [](uint32_t flags, uint32_t num_channels) { return num_channels | (flags << 8); };
+
+    num_host_mem_ch_per_mmio_device = cook_flags(kMapWC, num_host_mem_ch_per_mmio_device);
+
+    Cluster cluster(
+        test_utils::GetAbsPath("tests/soc_descs/blackhole_140_arch_no_eth.yaml"),
+        target_devices,
+        num_host_mem_ch_per_mmio_device,
+        false,
+        true,
+        false);
+    set_barrier_params(cluster);
+    cluster.start_device(default_params);
+    cluster.close_device();
+}
+
 // TEST(SiliconDriverWH, Harvesting) {
 //     std::set<chip_id_t> target_devices = {0, 1};
 //     std::unordered_map<chip_id_t, uint32_t> simulated_harvesting_masks = {{0, 30}, {1, 60}};
