@@ -49,6 +49,7 @@
 #include "umd/device/tt_device/tlb_manager.h"
 #include "umd/device/tt_soc_descriptor.h"
 #include "umd/device/types/arch.h"
+#include "umd/device/types/blackhole_eth.h"
 #include "umd/device/types/tlb.h"
 #include "yaml-cpp/yaml.h"
 
@@ -3429,6 +3430,120 @@ void Cluster::set_barrier_address_params(const barrier_address_params& barrier_a
 tt_xy_pair Cluster::translate_to_api_coords(const chip_id_t chip, const tt::umd::CoreCoord core_coord) const {
     CoordSystem coord_system = arch_name == tt::ARCH::GRAYSKULL ? CoordSystem::PHYSICAL : CoordSystem::VIRTUAL;
     return get_soc_descriptor(chip).translate_coord_to(core_coord, coord_system);
+}
+
+std::unique_ptr<tt_ClusterDescriptor> Cluster::get_cluster_descriptor() {
+    std::map<int, PciDeviceInfo> pci_device_info = PCIDevice::enumerate_devices_info();
+    if (pci_device_info.begin()->second.get_arch() == tt::ARCH::BLACKHOLE) {
+        std::vector<int> pci_device_ids = PCIDevice::enumerate_devices();
+
+        std::vector<std::unique_ptr<TTDevice>> tt_devices;
+        for (auto& device_id : pci_device_ids) {
+            std::unique_ptr<TTDevice> tt_device = TTDevice::create(device_id);
+            tt_devices.push_back(std::move(tt_device));
+        }
+
+        std::vector<ChipInfo> chip_info_vec = Cluster::get_cluster_chip_info(tt_devices);
+
+        std::unordered_map<chip_id_t, std::unique_ptr<Chip>> chips;
+        for (uint32_t chip_id = 0; chip_id < tt_devices.size(); chip_id++) {
+            const ChipInfo& chip_info = chip_info_vec[chip_id];
+            std::unique_ptr<TTDevice>& tt_device = tt_devices[chip_id];
+            std::unique_ptr<LocalChip> chip = std::make_unique<LocalChip>(std::move(tt_device), chip_info);
+            chips.emplace(chip_id, std::move(chip));
+        }
+
+        return Cluster::create_cluster_descriptor(chips);
+    } else {
+        return tt_ClusterDescriptor::create();
+    }
+}
+
+std::vector<ChipInfo> Cluster::get_cluster_chip_info(
+    const std::vector<std::unique_ptr<tt::umd::TTDevice>>& tt_devices) {
+    std::vector<tt_xy_pair> eth_cores = tt::umd::blackhole::ETH_CORES;
+    const auto tlb_index = tt::umd::blackhole::MEM_LARGE_READ_TLB;
+
+    tt_xy_pair arc_core = tt::umd::blackhole::ARC_CORES[0];
+    std::vector<ChipInfo> chip_info_vec;
+    for (auto& tt_device : tt_devices) {
+        chip_info_vec.push_back(tt_device->get_chip_info());
+    }
+
+    return chip_info_vec;
+}
+
+std::unique_ptr<tt_ClusterDescriptor> Cluster::create_cluster_descriptor(
+    const std::unordered_map<chip_id_t, std::unique_ptr<tt::umd::Chip>>& chips) {
+    std::unique_ptr<tt_ClusterDescriptor> desc = std::unique_ptr<tt_ClusterDescriptor>(new tt_ClusterDescriptor());
+
+    for (auto& it : chips) {
+        const chip_id_t chip_id = it.first;
+        const std::unique_ptr<Chip>& chip = it.second;
+        desc->chip_uid_to_chip_id.insert({chip->get_chip_info().chip_uid, it.first});
+    }
+
+    for (auto& it : chips) {
+        const chip_id_t chip_id = it.first;
+        const std::unique_ptr<Chip>& chip = it.second;
+
+        desc->all_chips.insert(chip_id);
+        desc->chip_arch.insert({chip_id, chip->get_tt_device()->get_arch()});
+
+        desc->chips_with_mmio.insert({chip_id, chip->get_tt_device()->get_pci_device()->get_pci_device_id()});
+
+        desc->chip_board_type.insert({chip_id, chip->get_chip_info().board_type});
+
+        desc->noc_translation_enabled.insert({chip_id, chip->get_chip_info().noc_translation_enabled});
+        desc->harvesting_masks.insert({chip_id, chip->get_chip_info().harvesting_masks.tensix_harvesting_mask});
+
+        const std::vector<CoreCoord> eth_cores = chip->get_soc_descriptor().get_cores(CoreType::ETH);
+
+        for (size_t eth_channel = 0; eth_channel < eth_cores.size(); eth_channel++) {
+            const CoreCoord& eth_core = eth_cores[eth_channel];
+            TTDevice* tt_device = chip->get_tt_device();
+            boot_results_t boot_results;
+
+            tt_device->read_from_device(
+                (uint8_t*)&boot_results,
+                tt_xy_pair(eth_core.x, eth_core.y),
+                blackhole::BOOT_RESULTS_ADDR,
+                sizeof(boot_results));
+
+            if (boot_results.eth_status.port_status == port_status_e::PORT_UP) {
+                log_debug(LogSiliconDriver, "Eth core ({}, {}) on chip {} is active", eth_core.x, eth_core.y, chip_id);
+                // active eth core
+                const chip_info_t& local_info = boot_results.local_info;
+                const chip_info_t& remote_info = boot_results.remote_info;
+
+                chip_id_t local_chip_id = desc->get_chip_id(local_info.get_chip_uid());
+                chip_id_t remote_chip_id = desc->get_chip_id(remote_info.get_chip_uid());
+
+                // Adding a connection only one way, the other chip should add it another way.
+                desc->ethernet_connections[local_chip_id][local_info.eth_id] = {remote_chip_id, remote_info.eth_id};
+
+            } else if (boot_results.eth_status.port_status == port_status_e::PORT_DOWN) {
+                log_debug(
+                    LogSiliconDriver, "Port on eth core ({}, {}) on chip {} is down", eth_core.x, eth_core.y, chip_id);
+            } else if (boot_results.eth_status.port_status == port_status_e::PORT_UNUSED) {
+                // idle core
+                log_debug(LogSiliconDriver, "Eth core ({}, {}) on chip {} is idle");
+            } else if (boot_results.eth_status.port_status == port_status_e::PORT_UNKNOWN) {
+                log_debug(
+                    LogSiliconDriver,
+                    "Port on eth core ({}, {}) on chip {} is in unknown state",
+                    eth_core.x,
+                    eth_core.y,
+                    chip_id);
+            }
+        }
+    }
+
+    desc->enable_all_devices();
+
+    desc->fill_chips_grouped_by_closest_mmio();
+
+    return desc;
 }
 
 }  // namespace tt::umd
