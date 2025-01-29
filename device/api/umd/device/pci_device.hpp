@@ -131,7 +131,7 @@ public:
     bool is_iommu_enabled() const { return iommu_enabled; }
 
     // TODO: this also probably has more sense to live in the future TTDevice class.
-    bool init_hugepage(uint32_t num_host_mem_channels);
+    bool init_hugepage(uint32_t num_host_mem_channels, int flags = 0);
 
     /**
      * Allocate sysmem without hugepages and map it through IOMMU.

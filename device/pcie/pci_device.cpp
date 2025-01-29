@@ -374,7 +374,7 @@ PCIDevice::~PCIDevice() {
     }
 }
 
-bool PCIDevice::init_hugepage(uint32_t num_host_mem_channels) {
+bool PCIDevice::init_hugepage(uint32_t num_host_mem_channels, int flags) {
     const size_t hugepage_size = HUGEPAGE_REGION_SIZE;
 
     if (is_iommu_enabled()) {
@@ -396,6 +396,15 @@ bool PCIDevice::init_hugepage(uint32_t num_host_mem_channels) {
     bool success = true;
 
     hugepage_mapping_per_channel.resize(num_host_mem_channels);
+
+    if ((flags & TENSTORRENT_PIN_PAGES_WC) && (flags & TENSTORRENT_PIN_PAGES_UC)) {
+        log_warning(LogSiliconDriver, "Cannot pin pages as WC and UC at the same time.", physical_device_id);
+        return false;
+    } else if (flags & TENSTORRENT_PIN_PAGES_WC) {
+        log_info(LogSiliconDriver, "Attempting to pin pages as WC.");
+    } else if (flags & TENSTORRENT_PIN_PAGES_UC) {
+        log_info(LogSiliconDriver, "Attempting to pin pages as UC.");
+    }
 
     // Support for more than 1GB host memory accessible per device, via channels.
     for (int ch = 0; ch < num_host_mem_channels; ch++) {
@@ -459,7 +468,7 @@ bool PCIDevice::init_hugepage(uint32_t num_host_mem_channels) {
         tenstorrent_pin_pages pin_pages;
         memset(&pin_pages, 0, sizeof(pin_pages));
         pin_pages.in.output_size_bytes = sizeof(pin_pages.out);
-        pin_pages.in.flags = TENSTORRENT_PIN_PAGES_CONTIGUOUS;
+        pin_pages.in.flags = TENSTORRENT_PIN_PAGES_CONTIGUOUS | flags;
         pin_pages.in.virtual_address = reinterpret_cast<std::uintptr_t>(mapping);
         pin_pages.in.size = hugepage_size;
 
