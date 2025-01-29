@@ -8,6 +8,7 @@
 
 #include <set>
 
+#include "umd/device/blackhole_arc_telemetry_reader.h"
 #include "umd/device/tt_device/tt_device.h"
 
 namespace tt::umd {
@@ -21,5 +22,9 @@ public:
 private:
     static constexpr uint64_t ATU_OFFSET_IN_BH_BAR2 = 0x1200;
     std::set<size_t> iatu_regions_;
+    std::unique_ptr<blackhole::BlackholeArcTelemetryReader> telemetry = nullptr;
+
+protected:
+    ChipInfo get_chip_info() override;
 };
 }  // namespace tt::umd

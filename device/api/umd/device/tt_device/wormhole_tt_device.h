@@ -12,5 +12,8 @@ namespace tt::umd {
 class WormholeTTDevice : public TTDevice {
 public:
     WormholeTTDevice(std::unique_ptr<PCIDevice> pci_device);
+
+protected:
+    ChipInfo get_chip_info() override;
 };
 }  // namespace tt::umd
