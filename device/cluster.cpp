@@ -213,7 +213,9 @@ void Cluster::create_device(
     for (const chip_id_t& logical_device_id : target_mmio_device_ids) {
         auto pci_device = get_tt_device(logical_device_id)->get_pci_device();
 
-        int num_host_mem_channels = num_host_mem_ch_per_mmio_device;
+        // HACK: smuggle in some flags in the `num_host_mem_ch_per_mmio_device` parameter.
+        int num_host_mem_channels = num_host_mem_ch_per_mmio_device & 0xff;
+        int hugepage_flags = (num_host_mem_ch_per_mmio_device >> 8) & 0xff;
 
         // TODO: get rid of this when the following Metal CI issue is resolved.
         // https://github.com/tenstorrent/tt-metal/issues/15675
@@ -226,7 +228,7 @@ void Cluster::create_device(
             uint16_t pcie_device_id = pci_device->get_pci_device_id();
             uint32_t pcie_revision = pci_device->get_pci_revision();
             num_host_mem_channels =
-                get_available_num_host_mem_channels(num_host_mem_ch_per_mmio_device, pcie_device_id, pcie_revision);
+                get_available_num_host_mem_channels(num_host_mem_channels, pcie_device_id, pcie_revision);
         }
 
         log_debug(
@@ -245,7 +247,7 @@ void Cluster::create_device(
         // MT: Initial BH - hugepages will fail init
         // For using silicon driver without workload to query mission mode params, no need for hugepage.
         if (!skip_driver_allocs) {
-            bool hugepages_initialized = pci_device->init_hugepage(num_host_mem_channels);
+            bool hugepages_initialized = pci_device->init_hugepage(num_host_mem_channels, hugepage_flags);
             // Large writes to remote chips require hugepages to be initialized.
             // Conservative assert - end workload if remote chips present but hugepages not initialized (failures caused
             // if using remote only for small transactions)
