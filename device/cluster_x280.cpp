@@ -679,17 +679,18 @@ void ClusterX280::ethernet_broadcast_write(
         if (core.type == CoreType::HARVESTED) {
             continue;
         }
-        // auto value = *reinterpret_cast<const uint32_t*>(mem_ptr);
-        // read_from_device(&value, tt_cxy_pair(0, x, y), address, 4, fallback_tlb);
-        // UMD_INFO("Read back value {:#x}", value);
-
         uint64_t noc_node_id = 0xffb20044ULL;
         uint32_t id = 0;
         read_from_device(&id, tt_cxy_pair(0, x, y), noc_node_id, 4, fallback_tlb);
-        UMD_INFO("x={}, y={}, id={:#x}", x, y, id);
+        UMD_INFO("x={}, y={}, id={:#x} -> {},{}", x, y, id, id & 0x3f, (id >> 6) & 0x3f);
 
-        // value = *reinterpret_cast<const uint32_t*>(mem_ptr);
-        for (size_t i = 0; i < 10; ++i) {
+
+        // Assume for now this is just being used for reset.
+        uint32_t value = *reinterpret_cast<const uint32_t*>(mem_ptr);
+        uint32_t existing;
+        read_from_device(&existing, tt_cxy_pair(0, x, y), address, 4, fallback_tlb);
+        continue;
+        if (value != existing) {
             write_to_device(mem_ptr, size_in_bytes, tt_cxy_pair(0, x, y), address, fallback_tlb);
             tt_driver_atomics::sfence();
         }

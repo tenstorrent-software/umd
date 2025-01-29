@@ -91,7 +91,6 @@ private:
     static constexpr uint32_t ioctl_alloc[] = { L2CPU_IOCTL_ALLOC_2M, L2CPU_IOCTL_ALLOC_128G };
     static constexpr uint32_t ioctl_dealloc[] = { L2CPU_IOCTL_DEALLOC_2M, L2CPU_IOCTL_DEALLOC_128G };
     static constexpr uint32_t ioctl_config[] = { L2CPU_IOCTL_CONFIG_2M, L2CPU_IOCTL_CONFIG_128G };
-    static constexpr uint32_t window_shifts[] = { 21, 37 };
 };
 
 class NocDriver
@@ -120,82 +119,16 @@ public:
     }
 };
 
-class NocWindowPool
-{
-private:
-    // Is doing this in Rust any less aesthetically offensive?  As difficult?
-    // Using unique_ptr deleter wrecks the type signature.  I could pass a
-    // std::function into NocWindow() to do the deletion in ~NocWindow() but
-    // that's less explicit, less efficient... Ugh.
-    struct WindowDeleter
-    {
-        NocWindowPool* pool;
-        void operator()(NocWindow* ptr) { if (ptr) pool->release(ptr); }
-    };
-
-public:
-    using WindowHandle = std::unique_ptr<NocWindow, WindowDeleter>;
-
-    NocWindowPool(NocDriver& driver, size_t window_size, size_t quantity = 10)
-    {
-        for (size_t i = 0; i < quantity; ++i) {
-            auto window = driver.open_window(window_size, {});
-            windows.push(std::move(window));
-        }
-    }
-
-    // Potential optimization: pass in desired configuration and prioritize
-    // reusing windows that match the configuration.  Tradeoff between:
-    // Current situation: always reconfigure (syscall + reg writes + barrier)
-    // Reuse windows: Lookup overhead + potential reconfiguration anyway
-    //
-    // I think this is fine for now.  If you want to optimize, it makes sense to
-    // hold a window for each configuration you expect to use.
-    WindowHandle acquire()
-    {
-        std::unique_lock<std::mutex> lock(mtx);
-        cv.wait(lock, [this]() { return !windows.empty(); });
-
-        // Take one down...
-        NocWindow* window = windows.front().release();
-        windows.pop();
-
-        // Pass it around...
-        return WindowHandle(window, WindowDeleter{this});
-    }
-
-private:
-    void release(NocWindow* window)
-    {
-        std::unique_lock<std::mutex> lock(mtx);
-        windows.push(std::unique_ptr<NocWindow>(window));
-        cv.notify_one();
-    }
-
-    std::queue<std::unique_ptr<NocWindow>> windows;
-    std::mutex mtx;
-    std::condition_variable cv;
-};
-
-using ManagedNocWindow = NocWindowPool::WindowHandle;
-
 class NOC
 {
     NocDriver driver;
-    NocWindowPool windows_2M;
-    NocWindowPool windows_128G;
 
 public:
     NOC()
         : driver()
-        , windows_2M(driver, TWO_MEGS, 100)
-        , windows_128G(driver, FOUR_GIGS, 5)
     {
     }
 
-    // I don't know if the window pool thing really makes sense... I am doing
-    // this because the type signature of what get_window returns is stupid,
-    // and I don't want to have to deal with it up in the UMD.
     std::unique_ptr<NocWindow> allocate_window(size_t size, noc_window_config config)
     {
         if (size == TWO_MEGS) {
@@ -207,26 +140,6 @@ public:
         }
 
         throw std::runtime_error("Invalid window size");
-    }
-
-    auto get_window(size_t window_size)
-    {
-        if (window_size == TWO_MEGS) {
-            return windows_2M.acquire();
-        }
-
-        if (window_size == FOUR_GIGS) {
-            return windows_128G.acquire();
-        }
-
-        throw std::runtime_error("Invalid window size");
-    }
-
-    auto get_window(size_t window_size, noc_window_config config)
-    {
-        auto window = get_window(window_size);
-        window->reconfigure(config);
-        return window;
     }
 
     uint32_t read32(uint32_t x, uint32_t y, uint64_t addr)
@@ -265,7 +178,7 @@ public:
             .y_end = y,
         };
 
-        auto window = get_window(window_size, config);
+        auto window = allocate_window(window_size, config);
         void* src = window->data() + offset;
 
         switch (size) {
@@ -318,7 +231,7 @@ public:
             .y_end = y,
         };
 
-        auto window = get_window(window_size, config);
+        auto window = allocate_window(window_size, config);
         void* dst = window->data() + offset;
 
         UMD_INFO("About to write to {},{} at {:#x}", x, y, addr);
@@ -344,14 +257,9 @@ public:
             return;
         }
 
-        // for (size_t i = 0; i < size; ++i) {
-        //     reinterpret_cast<volatile uint8_t*>(dst)[i] = reinterpret_cast<const uint8_t*>(src)[i];
-        // }
         UMD_INFO("Writing {} bytess to {},{} at {:#x}", size, x, y, addr);
         memcpy(dst, src, size);
     }
 };
-// debug, single byte [==========] 6 tests from 1 test suite ran. (138228 ms total)
-// debug, memcpy      [==========] 6 tests from 1 test suite ran. (36946 ms total)
 
 } // namespace tt::umd
