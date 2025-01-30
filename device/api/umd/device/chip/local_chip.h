@@ -20,6 +20,8 @@ public:
 
     bool is_mmio_capable() const override;
 
+    void wait_eth_cores_training(const uint32_t timeout_per_core = 1000) override;
+
 private:
     std::unique_ptr<TTDevice> tt_device_;
 

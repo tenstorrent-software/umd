@@ -33,6 +33,8 @@ public:
 
     const ChipInfo& get_chip_info();
 
+    virtual void wait_eth_cores_training(const uint32_t timeout_per_core = 1000);
+
     // TODO: This should be private, once enough stuff is moved inside chip.
     // Probably also moved to LocalChip.
     tt_device_dram_address_params dram_address_params;

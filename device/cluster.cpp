@@ -3464,9 +3464,12 @@ std::vector<ChipInfo> Cluster::get_cluster_chip_info(
     std::vector<tt_xy_pair> eth_cores = tt::umd::blackhole::ETH_CORES;
     const auto tlb_index = tt::umd::blackhole::MEM_LARGE_READ_TLB;
 
+    // TODO: make this generic when this code is used for other architectures.
     tt_xy_pair arc_core = tt::umd::blackhole::ARC_CORES[0];
+
     std::vector<ChipInfo> chip_info_vec;
     for (auto& tt_device : tt_devices) {
+        tt_device->wait_arc_core_start(arc_core);
         chip_info_vec.push_back(tt_device->get_chip_info());
     }
 
@@ -3486,6 +3489,8 @@ std::unique_ptr<tt_ClusterDescriptor> Cluster::create_cluster_descriptor(
     for (auto& it : chips) {
         const chip_id_t chip_id = it.first;
         const std::unique_ptr<Chip>& chip = it.second;
+
+        chip->wait_eth_cores_training();
 
         desc->all_chips.insert(chip_id);
         desc->chip_arch.insert({chip_id, chip->get_tt_device()->get_arch()});

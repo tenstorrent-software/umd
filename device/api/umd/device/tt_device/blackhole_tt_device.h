@@ -19,12 +19,13 @@ public:
 
     void configure_iatu_region(size_t region, uint64_t base, uint64_t target, size_t size) override;
 
+    ChipInfo get_chip_info() override;
+
+    void wait_arc_core_start(const tt_xy_pair arc_core, const uint32_t timeout_ms = 1000) override;
+
 private:
     static constexpr uint64_t ATU_OFFSET_IN_BH_BAR2 = 0x1200;
     std::set<size_t> iatu_regions_;
     std::unique_ptr<blackhole::BlackholeArcTelemetryReader> telemetry = nullptr;
-
-protected:
-    ChipInfo get_chip_info() override;
 };
 }  // namespace tt::umd

@@ -51,4 +51,8 @@ void Chip::set_barrier_address_params(const barrier_address_params& barrier_addr
 
 const ChipInfo& Chip::get_chip_info() { return chip_info_; }
 
+void Chip::wait_eth_cores_training(const uint32_t timeout_per_core) {
+    throw std::runtime_error("Waiting for training of ETH cores is supported only for Blackhole LocalChip.");
+}
+
 }  // namespace tt::umd

@@ -12,6 +12,15 @@ namespace tt::umd {
 
 namespace blackhole {
 
+static constexpr uint32_t POSTCODE_ETH_INIT_SKIP = 0xC0DE0000;
+static constexpr uint32_t POSTCODE_ETH_INIT_SERDES = 0xC0DE1000;
+static constexpr uint32_t POSTCODE_ETH_INIT_ETH_CTRL = 0xC0DE2000;
+static constexpr uint32_t POSTCODE_ETH_INIT_MACPCS = 0xC0DE3000;
+static constexpr uint32_t POSTCODE_ETH_INIT_PACKET = 0xC0DE4000;
+static constexpr uint32_t POSTCODE_ETH_INIT_PASS = 0xC0DEA000;
+static constexpr uint32_t POSTCODE_ETH_INIT_FAIL = 0xC0DEB000;
+static constexpr uint32_t POSTCODE_ETH_INIT_CODE_NOT_FOUND = 0xC0DEFFFF;
+
 static constexpr uint32_t NUM_SERDES_LANES = 8;
 
 typedef enum {
