@@ -569,11 +569,16 @@ void Cluster::ubb_eth_connections() {
     const uint32_t eth_unconnected = 1;
     const uint32_t shelf_offset = 9;
     const uint32_t rack_offset = 10;
+    const uint32_t base_addr = 0x1ec0;
 
     for (const auto& [chip_id, chip] : chips_) {
         std::cout << "chip id " << chip_id << std::endl;
 
         std::vector<CoreCoord> eth_cores = chip->get_soc_descriptor().get_cores(CoreType::ETH);
+
+        if (chip_id == 1) {
+            continue;
+        }
 
         uint32_t channel = 0;
         for (const CoreCoord& eth_core : eth_cores) {
@@ -591,6 +596,32 @@ void Cluster::ubb_eth_connections() {
 
             std::cout << "port status " << port_status << std::endl;
 
+            if (port_status == eth_unknown || port_status == eth_unconnected) {
+                channel++;
+                continue;
+            }
+
+            // TODO(pjanevski): This may work for UBB
+            // uint64_t neighbour_board_type;
+            // read_from_device(
+            //     &neighbour_board_type,
+            //     tt_cxy_pair(chip_id, eth_core.x, eth_core.y),
+            //     base_addr + (72 * 4),
+            //     sizeof(uint64_t),
+            //     "SMALL_READ_WRITE_TLB");
+            
+            // std::cout << "neighbour board type " << neighbour_board_type << std::endl;
+
+            // uint64_t our_board_type;
+            // read_from_device(
+            //     &our_board_type,
+            //     tt_cxy_pair(chip_id, eth_core.x, eth_core.y),
+            //     base_addr + (64 * 4),
+            //     sizeof(uint64_t),
+            //     "SMALL_READ_WRITE_TLB");
+
+            // std::cout << "our board type " << our_board_type << std::endl;
+
             std::cout << std::hex;
             uint32_t remote_id;
             read_from_device(
@@ -602,7 +633,6 @@ void Cluster::ubb_eth_connections() {
 
             uint32_t remote_rack_x = remote_id & 0xFF;
             uint32_t remote_rack_y = (remote_id >> 8) & 0xFF;
-    
             read_from_device(
                 &remote_id,
                 tt_cxy_pair(chip_id, eth_core.x, eth_core.y),
@@ -621,6 +651,8 @@ void Cluster::ubb_eth_connections() {
             std::cout << "remote noc " << remote_noc_x << " " << remote_noc_y << std::endl;
 
             std::cout << std::dec;
+
+            
 
             channel++;
         }

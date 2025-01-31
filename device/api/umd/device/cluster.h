@@ -938,6 +938,8 @@ public:
     virtual void dram_membar(
         const chip_id_t chip, const std::unordered_set<tt::umd::CoreCoord>& cores, const std::string& fallback_tlb);
 
+    void ubb_eth_connections();
+
     // Destructor
     virtual ~Cluster();
 
@@ -1122,8 +1124,6 @@ private:
         std::unordered_map<chip_id_t, HarvestingMasks> simulated_harvesting_masks);
     // Helper function for translating chip coordinates.
     tt_xy_pair translate_to_api_coords(const chip_id_t chip, const tt::umd::CoreCoord core_coord) const;
-
-    void ubb_eth_connections();
 
     // State variables
     std::vector<tt::ARCH> archs_in_cluster = {};
