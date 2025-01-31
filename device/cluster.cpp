@@ -557,7 +557,7 @@ Cluster::Cluster(
     const bool clean_system_resources,
     bool perform_harvesting,
     std::unordered_map<chip_id_t, HarvestingMasks> simulated_harvesting_masks) {
-    cluster_desc = tt_ClusterDescriptor::create();
+    cluster_desc = Cluster::get_cluster_descriptor();
 
     for (auto& chip_id : cluster_desc->get_all_chips()) {
         add_chip(
@@ -583,7 +583,7 @@ Cluster::Cluster(
     const bool clean_system_resources,
     bool perform_harvesting,
     std::unordered_map<chip_id_t, HarvestingMasks> simulated_harvesting_masks) {
-    cluster_desc = tt_ClusterDescriptor::create();
+    cluster_desc = Cluster::get_cluster_descriptor();
 
     for (auto& chip_id : target_devices) {
         log_assert(
@@ -614,7 +614,7 @@ Cluster::Cluster(
     const bool clean_system_resources,
     bool perform_harvesting,
     std::unordered_map<chip_id_t, HarvestingMasks> simulated_harvesting_masks) {
-    cluster_desc = tt_ClusterDescriptor::create();
+    cluster_desc = Cluster::get_cluster_descriptor();
 
     for (auto& chip_id : target_devices) {
         log_assert(
@@ -651,7 +651,7 @@ Cluster::Cluster(
     const bool clean_system_resources,
     bool perform_harvesting,
     const std::unordered_map<chip_id_t, HarvestingMasks> simulated_harvesting_masks) {
-    cluster_desc = tt_ClusterDescriptor::create();
+    cluster_desc = Cluster::get_cluster_descriptor();
 
     for (auto& [chip_id, chip] : chips) {
         add_chip(chip_id, std::move(chip));
@@ -3495,7 +3495,7 @@ std::unique_ptr<tt_ClusterDescriptor> Cluster::create_cluster_descriptor(
         desc->all_chips.insert(chip_id);
         desc->chip_arch.insert({chip_id, chip->get_tt_device()->get_arch()});
 
-        desc->chips_with_mmio.insert({chip_id, chip->get_tt_device()->get_pci_device()->get_pci_device_id()});
+        desc->chips_with_mmio.insert({chip_id, chip->get_tt_device()->get_pci_device()->get_device_num()});
 
         desc->chip_board_type.insert({chip_id, chip->get_chip_info().board_type});
 
