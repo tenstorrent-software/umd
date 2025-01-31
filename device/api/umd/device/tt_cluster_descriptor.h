@@ -19,12 +19,16 @@
 #include "umd/device/tt_xy_pair.h"
 #include "umd/device/types/arch.h"
 #include "umd/device/types/cluster_descriptor_types.h"
+#include "umd/device/cluster.h"
 
 namespace YAML {
 class Node;
 }
 
 class tt_ClusterDescriptor {
+
+    friend class Cluster;
+    
 private:
     tt_ClusterDescriptor() = default;
 
@@ -45,6 +49,7 @@ protected:
     std::unordered_map<chip_id_t, BoardType> chip_board_type = {};
     std::unordered_map<chip_id_t, std::unordered_set<chip_id_t>> chips_grouped_by_closest_mmio;
     std::unordered_map<chip_id_t, tt::ARCH> chip_arch = {};
+    std::unordered_map<uint64_t, chip_id_t> chip_uid_to_local_chip_id = {};
 
     // one-to-many chip connections
     struct Chip2ChipConnection {

@@ -571,6 +571,44 @@ void Cluster::ubb_eth_connections() {
     const uint32_t rack_offset = 10;
     const uint32_t base_addr = 0x1ec0;
 
+     for (const auto& [chip_id, chip] : chips_) {
+        std::cout << "chip id " << chip_id << std::endl;
+
+        std::vector<CoreCoord> eth_cores = chip->get_soc_descriptor().get_cores(CoreType::ETH);
+
+         if (chip_id == 1) {
+            continue;
+        }
+
+        uint32_t channel = 0;
+        for (const CoreCoord& eth_core : eth_cores) {
+            uint32_t port_status;
+            read_from_device(
+                &port_status,
+                tt_cxy_pair(chip_id, eth_core.x, eth_core.y),
+                conn_info + (channel * 4),
+                sizeof(uint32_t),
+                "SMALL_READ_WRITE_TLB");
+
+            std::cout << "port status " << port_status << std::endl;
+
+            if (port_status == eth_unknown || port_status == eth_unconnected) {
+                channel++;
+                continue;
+            }
+
+            // uint64_t our_board_type;
+            // read_from_device(
+            //     &our_board_type,
+            //     tt_cxy_pair(chip_id, eth_core.x, eth_core.y),
+            //     base_addr + (64 * 4),
+            //     sizeof(uint64_t),
+            //     "SMALL_READ_WRITE_TLB");
+
+            // cluster_desc->chip_uid_to_local_chip_id.insert({our_board_type, chip_id});
+        }
+     }
+
     for (const auto& [chip_id, chip] : chips_) {
         std::cout << "chip id " << chip_id << std::endl;
 
@@ -652,7 +690,8 @@ void Cluster::ubb_eth_connections() {
 
             std::cout << std::dec;
 
-            
+            // chip_id_t remote_chip_id = cluster_desc->chip_uid_to_local_chip_id.at(neighbour_board_type);
+            // cluster_desc->ethernet_connections[chip_id][channel] = {remote_chip_id, channel};
 
             channel++;
         }
