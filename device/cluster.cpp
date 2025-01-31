@@ -557,6 +557,45 @@ HarvestingMasks Cluster::get_harvesting_masks(
         .eth_harvesting_mask = get_eth_harvesting_mask(chip_id, perfrom_harvesting, simulated_harvesting_masks)};
 }
 
+void Cluster::ubb_eth_connections() {
+    // &fw_version,
+    //             tt_cxy_pair(chip, eth_core),
+    //             chips_.at(chip)->l1_address_params.fw_version_addr,
+    //             sizeof(uint32_t),
+    //             "LARGE_READ_TLB"
+    const uint64_t conn_info = 0x1200;
+    const uint64_t node_info = 0x1100;
+    const uint32_t eth_unknown = 0;
+    const uint32_t eth_unconnected = 1;
+    const uint32_t shelf_offset = 9;
+    const uint32_t rack_offset = 10;
+
+    for (const auto& [chip_id, chip] : chips_) {
+        std::cout << "chip id " << chip_id << std::endl;
+
+        std::vector<CoreCoord> eth_cores = chip->get_soc_descriptor().get_cores(CoreType::ETH);
+
+        uint32_t channel = 0;
+        for (const CoreCoord& eth_core : eth_cores) {
+            // const tt_xy_pair eth_core_pair = {eth_core.x, eth_core.y};
+
+            std::cout << "eth core " << eth_core.x << " " << eth_core.y << std::endl;
+
+            uint32_t port_status;
+            read_from_device(
+                &port_status,
+                tt_cxy_pair(chip_id, eth_core.x, eth_core.y),
+                conn_info + (channel * 4),
+                sizeof(uint32_t),
+                "SMALL_READ_WRITE_TLB");
+
+            std::cout << "port status " << port_status << std::endl;
+
+            channel++;
+        }
+    }
+}
+
 Cluster::Cluster(
     const uint32_t& num_host_mem_ch_per_mmio_device,
     const bool skip_driver_allocs,
@@ -580,6 +619,8 @@ Cluster::Cluster(
         clean_system_resources,
         perform_harvesting,
         simulated_harvesting_masks);
+
+    ubb_eth_connections();
 }
 
 Cluster::Cluster(

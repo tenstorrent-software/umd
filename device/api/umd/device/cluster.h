@@ -1123,6 +1123,8 @@ private:
     // Helper function for translating chip coordinates.
     tt_xy_pair translate_to_api_coords(const chip_id_t chip, const tt::umd::CoreCoord core_coord) const;
 
+    void ubb_eth_connections();
+
     // State variables
     std::vector<tt::ARCH> archs_in_cluster = {};
     std::set<chip_id_t> all_chip_ids_ = {};
