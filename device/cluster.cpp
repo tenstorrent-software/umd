@@ -591,6 +591,37 @@ void Cluster::ubb_eth_connections() {
 
             std::cout << "port status " << port_status << std::endl;
 
+            std::cout << std::hex;
+            uint32_t remote_id;
+            read_from_device(
+                &remote_id,
+                tt_cxy_pair(chip_id, eth_core.x, eth_core.y),
+                node_info + (rack_offset * 4),
+                sizeof(uint32_t),
+                "SMALL_READ_WRITE_TLB");
+
+            uint32_t remote_rack_x = remote_id & 0xFF;
+            uint32_t remote_rack_y = (remote_id >> 8) & 0xFF;
+    
+            read_from_device(
+                &remote_id,
+                tt_cxy_pair(chip_id, eth_core.x, eth_core.y),
+                node_info + (shelf_offset * 4),
+                sizeof(uint32_t),
+                "SMALL_READ_WRITE_TLB");
+            
+            uint32_t remote_shelf_x = (remote_id >> 16) & 0x3F;
+            uint32_t remote_shelf_y = (remote_id >> 22) & 0x3F;
+
+            uint32_t remote_noc_x = (remote_id >> 4) & 0x3F;
+            uint32_t remote_noc_y = (remote_id >> 10) & 0x3F;
+
+            std::cout << "remote rack " << remote_rack_x << " " << remote_rack_y << std::endl;
+            std::cout << "remote shelf " << remote_shelf_x << " " << remote_shelf_y << std::endl;
+            std::cout << "remote noc " << remote_noc_x << " " << remote_noc_y << std::endl;
+
+            std::cout << std::dec;
+
             channel++;
         }
     }
