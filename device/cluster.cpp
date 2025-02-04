@@ -36,6 +36,7 @@
 #include <utility>
 #include <vector>
 
+#include "api/umd/device/cluster.h"
 #include "api/umd/device/tt_core_coordinates.h"
 #include "logger.hpp"
 #include "umd/device/architecture_implementation.h"
@@ -558,6 +559,7 @@ Cluster::Cluster(
     bool perform_harvesting,
     std::unordered_map<chip_id_t, HarvestingMasks> simulated_harvesting_masks) {
     cluster_desc = Cluster::get_cluster_descriptor();
+    // cluster_desc = tt_ClusterDescriptor::create();
 
     for (auto& chip_id : cluster_desc->get_all_chips()) {
         add_chip(
@@ -1675,11 +1677,13 @@ uint32_t Cluster::get_harvested_noc_rows(uint32_t harvesting_mask) {
 }
 
 uint32_t Cluster::get_harvested_rows(int logical_device_id) {
+    std::cout << "getting harvested rows" << std::endl;
     const char* harv_override = std::getenv("T6PY_HARVESTING_OVERRIDE");
     uint32_t harv = 0xffffffff;
     if (harv_override) {
         harv = std::stoul(harv_override, nullptr, 16);
     } else {
+        std::cout << "calling arc message" << std::endl;
         auto mmio_capable_chip_logical = cluster_desc->get_closest_mmio_capable_chip(logical_device_id);
         TTDevice* tt_device = get_tt_device(mmio_capable_chip_logical);
         int harvesting_msg_code = arc_msg(
@@ -1690,6 +1694,7 @@ uint32_t Cluster::get_harvested_rows(int logical_device_id) {
             0,
             1,
             &harv);
+        std::cout << "harv " << harv << std::endl;
         log_assert(
             harvesting_msg_code != MSG_ERROR_REPLY, "Failed to read harvested rows from device {}", logical_device_id);
     }
@@ -3433,30 +3438,30 @@ tt_xy_pair Cluster::translate_to_api_coords(const chip_id_t chip, const tt::umd:
 }
 
 std::unique_ptr<tt_ClusterDescriptor> Cluster::get_cluster_descriptor() {
-    std::map<int, PciDeviceInfo> pci_device_info = PCIDevice::enumerate_devices_info();
-    if (pci_device_info.begin()->second.get_arch() == tt::ARCH::BLACKHOLE) {
-        std::vector<int> pci_device_ids = PCIDevice::enumerate_devices();
+    // std::map<int, PciDeviceInfo> pci_device_info = PCIDevice::enumerate_devices_info();
+    // if (pci_device_info.begin()->second.get_arch() == tt::ARCH::BLACKHOLE) {
+    std::vector<int> pci_device_ids = PCIDevice::enumerate_devices();
 
-        std::vector<std::unique_ptr<TTDevice>> tt_devices;
-        for (auto& device_id : pci_device_ids) {
-            std::unique_ptr<TTDevice> tt_device = TTDevice::create(device_id);
-            tt_devices.push_back(std::move(tt_device));
-        }
-
-        std::vector<ChipInfo> chip_info_vec = Cluster::get_cluster_chip_info(tt_devices);
-
-        std::unordered_map<chip_id_t, std::unique_ptr<Chip>> chips;
-        for (uint32_t chip_id = 0; chip_id < tt_devices.size(); chip_id++) {
-            const ChipInfo& chip_info = chip_info_vec[chip_id];
-            std::unique_ptr<TTDevice>& tt_device = tt_devices[chip_id];
-            std::unique_ptr<LocalChip> chip = std::make_unique<LocalChip>(std::move(tt_device), chip_info);
-            chips.emplace(chip_id, std::move(chip));
-        }
-
-        return Cluster::create_cluster_descriptor(chips);
-    } else {
-        return tt_ClusterDescriptor::create();
+    std::vector<std::unique_ptr<TTDevice>> tt_devices;
+    for (auto& device_id : pci_device_ids) {
+        std::unique_ptr<TTDevice> tt_device = TTDevice::create(device_id);
+        tt_devices.push_back(std::move(tt_device));
     }
+
+    std::vector<ChipInfo> chip_info_vec = Cluster::get_cluster_chip_info(tt_devices);
+
+    std::unordered_map<chip_id_t, std::unique_ptr<Chip>> chips;
+    for (uint32_t chip_id = 0; chip_id < tt_devices.size(); chip_id++) {
+        const ChipInfo& chip_info = chip_info_vec[chip_id];
+        std::unique_ptr<TTDevice>& tt_device = tt_devices[chip_id];
+        std::unique_ptr<LocalChip> chip = std::make_unique<LocalChip>(std::move(tt_device), chip_info);
+        chips.emplace(chip_id, std::move(chip));
+    }
+
+    return Cluster::create_cluster_descriptor(chips);
+    // } else {
+    //     return tt_ClusterDescriptor::create();
+    // }
 }
 
 std::vector<ChipInfo> Cluster::get_cluster_chip_info(
