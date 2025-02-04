@@ -5,8 +5,8 @@
 
 #include <iostream>
 
-#include "umd/device/wormhole_implementation.h"
 #include "logger.hpp"
+#include "umd/device/wormhole_implementation.h"
 
 namespace tt::umd {
 
@@ -106,7 +106,7 @@ int WormholeTTDevice::arc_msg(
 
             if ((status & 0xffff) == (msg_code & 0xff)) {
                 if (return_3 != nullptr) {
-                    std::cout << "return3 not nullptr " << std::endl; 
+                    std::cout << "return3 not nullptr " << std::endl;
                     *return_3 = bar_read32(architecture_implementation->get_arc_reset_scratch_offset() + 3 * 4);
                 }
 
@@ -117,11 +117,7 @@ int WormholeTTDevice::arc_msg(
                 exit_code = (status & 0xffff0000) >> 16;
                 break;
             } else if (status == MSG_ERROR_REPLY) {
-                log_warning(
-                    LogSiliconDriver,
-                    "On device {}, message code 0x{:x} not recognized by FW",
-                    0,
-                    msg_code);
+                log_warning(LogSiliconDriver, "On device {}, message code 0x{:x} not recognized by FW", 0, msg_code);
                 exit_code = MSG_ERROR_REPLY;
                 break;
             }

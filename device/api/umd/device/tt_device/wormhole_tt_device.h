@@ -25,7 +25,7 @@ public:
         uint32_t arg1 = 0,
         int timeout = 1,
         uint32_t* return_3 = nullptr,
-        uint32_t* return_4 = nullptr) ;
+        uint32_t* return_4 = nullptr);
 
 protected:
     ChipInfo get_chip_info() override;

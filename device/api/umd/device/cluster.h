@@ -729,7 +729,7 @@ public:
         const chip_id_t chip, const std::unordered_set<tt::umd::CoreCoord>& cores, const std::string& fallback_tlb);
 
     static std::unique_ptr<tt_ClusterDescriptor> get_cluster_descriptor();
-    
+
     void ubb_eth_connections();
 
     // Destructor

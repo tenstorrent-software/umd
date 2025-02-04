@@ -568,7 +568,7 @@ void Cluster::ubb_eth_connections() {
 
     std::unordered_map<uint64_t, chip_id_t> chip_uid_to_local_chip_id = {};
 
-     for (const auto& [chip_id, chip] : chips_) {
+    for (const auto& [chip_id, chip] : chips_) {
         std::cout << "chip id " << chip_id << std::endl;
 
         std::vector<CoreCoord> eth_cores = chip->get_soc_descriptor().get_cores(CoreType::ETH);
@@ -600,7 +600,7 @@ void Cluster::ubb_eth_connections() {
 
             chip_uid_to_local_chip_id.insert({our_board_type, chip_id});
         }
-     }
+    }
 
     for (const auto& [chip_id, chip] : chips_) {
         std::cout << "chip id " << chip_id << std::endl;
