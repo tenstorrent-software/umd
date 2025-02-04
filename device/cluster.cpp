@@ -971,7 +971,23 @@ std::unordered_map<tt_xy_pair, tt_xy_pair> Cluster::create_harvested_coord_trans
 }
 
 void Cluster::translate_to_noc_table_coords(chip_id_t device_id, std::size_t& r, std::size_t& c) {
+    auto translated_coords_other = harvested_coord_translation[device_id].at(tt_xy_pair(c, r));
     tt_xy_pair translated_coords = translate_chip_coord_virtual_to_translated(device_id, {c, r});
+    if (translated_coords_other != translated_coords) {
+        log_assert(
+            false,
+            "Mismatch in translation for device_id: {} r: {} c: {} translated_coords_other: {} {} translated_coords: "
+            "{} {}",
+            device_id,
+            r,
+            c,
+            translated_coords_other.x,
+            translated_coords_other.y,
+            translated_coords.x,
+            translated_coords.y);
+    } else {
+        std::cout << "succ translate_to_noc_table_coords" << std::endl;
+    }
 
     c = translated_coords.x;
     r = translated_coords.y;
@@ -1003,16 +1019,52 @@ void Cluster::broadcast_pcie_tensix_risc_reset(chip_id_t chip_id, const TensixSo
 
     auto architecture_implementation = tt_device->get_architecture_implementation();
 
+    const tt_SocDescriptor& soc_desc = get_soc_descriptor(chip_id);
+    tt_xy_pair tensix_grid_size = soc_desc.get_grid_size(CoreType::TENSIX);
+    CoreCoord tensix_start = CoreCoord(0, 0, CoreType::TENSIX, CoordSystem::LOGICAL);
+    CoreCoord tensix_end =
+        CoreCoord(tensix_grid_size.x - 1, tensix_grid_size.y - 1, CoreType::TENSIX, CoordSystem::LOGICAL);
+    tt_xy_pair tensix_start_translated = tt_xy_pair(0, 0);
+    tt_xy_pair tensix_end_translated = (tt_xy_pair)soc_desc.translate_coord_to(tensix_end, CoordSystem::TRANSLATED);
+
+    tt_xy_pair tensix_start_old = harvested_coord_translation.at(chip_id).at(tt_xy_pair(0, 0));
+    tt_xy_pair tensix_end_old = harvested_coord_translation.at(chip_id).at(tt_xy_pair(
+        architecture_implementation->get_grid_size_x() - 1,
+        architecture_implementation->get_grid_size_y() - 1 - num_rows_harvested.at(chip_id)));
+
+    if (tensix_start_translated != tensix_start_old) {
+        log_assert(
+            false,
+            "Mismatch in translation for device_id: tensix_start_translated: {} {} tensix_start_old: {} {}",
+            tensix_start_translated.x,
+            tensix_start_translated.y,
+            tensix_start_old.x,
+            tensix_start_old.y);
+    } else {
+        std::cout << "succ broadcast_pcie_tensix_risc_reset" << std::endl;
+    }
+    if (tensix_end_translated != tensix_end_old) {
+        std::cout << "tensix_end_old " << architecture_implementation->get_grid_size_x() - 1 << " "
+                  << architecture_implementation->get_grid_size_y() - 1 - num_rows_harvested.at(chip_id) << " "
+                  << tensix_end_old.str() << " tensix_end " << tensix_end.str() << " tensix_end_translated "
+                  << tensix_end_translated.str() << std::endl;
+        log_assert(
+            false,
+            "Mismatch in translation for device_id: tensix_end_translated: {} {} tensix_end_old: {} {}",
+            tensix_end_translated.x,
+            tensix_end_translated.y,
+            tensix_end_old.x,
+            tensix_end_old.y);
+    } else {
+        std::cout << "succ2 broadcast_pcie_tensix_risc_reset" << std::endl;
+    }
+
     // TODO: this is clumsy and difficult to read
     auto [soft_reset_reg, _] = tt_device->set_dynamic_tlb_broadcast(
         architecture_implementation->get_reg_tlb(),
         architecture_implementation->get_tensix_soft_reset_addr(),
-        translate_chip_coord_virtual_to_translated(chip_id, tt_xy_pair(0, 0)),
-        translate_chip_coord_virtual_to_translated(
-            chip_id,
-            tt_xy_pair(
-                architecture_implementation->get_grid_size_x() - 1,
-                architecture_implementation->get_grid_size_y() - 1 - num_rows_harvested.at(chip_id))),
+        tensix_start_old,
+        tensix_end_translated,
         TLB_DATA::Posted);
     tt_device->write_regs(soft_reset_reg, 1, &valid);
     tt_driver_atomics::sfence();
@@ -1160,9 +1212,78 @@ void Cluster::write_device_memory(
         const scoped_lock<named_mutex> lock(*get_mutex(fallback_tlb, target.chip));
 
         while (size_in_bytes > 0) {
+            std::cout << "harvested coord translation ";
+            std::map<tt_xy_pair, tt_xy_pair> harvested_coord_translation_map;
+            for (auto& [chip, onemap] : harvested_coord_translation.at(target.chip)) {
+                harvested_coord_translation_map.insert({chip, onemap});
+            }
+            for (auto& [chip, onemap] : harvested_coord_translation_map) {
+                std::cout << chip.str() << " " << onemap.str() << "|";
+            }
+            std::cout << std::endl;
+
+            auto core_old = harvested_coord_translation.at(target.chip).at(target);
+            auto core_new = translate_chip_coord_virtual_to_translated(target.chip, target);
+            if (core_old != core_new) {
+                log_assert(
+                    false,
+                    "Mismatch in translation for device_id: core_new: {} {} core_old: {} {}",
+                    core_new.x,
+                    core_new.y,
+                    core_old.x,
+                    core_old.y);
+            } else {
+                std::cout << "succ write_device_memory" << std::endl;
+            }
+
+            TTDevice* tt_device = get_tt_device(target.chip);
+            auto architecture_implementation = tt_device->get_architecture_implementation();
+            const tt_SocDescriptor& soc_desc = get_soc_descriptor(target.chip);
+            tt_xy_pair tensix_grid_size = soc_desc.get_grid_size(CoreType::TENSIX);
+            CoreCoord tensix_start = CoreCoord(0, 0, CoreType::TENSIX, CoordSystem::LOGICAL);
+            CoreCoord tensix_end =
+                CoreCoord(tensix_grid_size.x - 1, tensix_grid_size.y - 1, CoreType::TENSIX, CoordSystem::LOGICAL);
+            tt_xy_pair tensix_start_translated = tt_xy_pair(0, 0);
+            tt_xy_pair tensix_end_translated =
+                (tt_xy_pair)soc_desc.translate_coord_to(tensix_end, CoordSystem::TRANSLATED);
+
+            tt_xy_pair tensix_start_old = harvested_coord_translation.at(target.chip).at(tt_xy_pair(0, 0));
+            tt_xy_pair tensix_end_old =
+                harvested_coord_translation.at(target.chip)
+                    .at(tt_xy_pair(
+                        architecture_implementation->get_grid_size_x() - 1,
+                        architecture_implementation->get_grid_size_y() - 1 - num_rows_harvested.at(target.chip)));
+
+            if (tensix_start_translated != tensix_start_old) {
+                log_assert(
+                    false,
+                    "Mismatch in translation for device_id: tensix_start_translated: {} {} tensix_start_old: {} {}",
+                    tensix_start_translated.x,
+                    tensix_start_translated.y,
+                    tensix_start_old.x,
+                    tensix_start_old.y);
+            } else {
+                std::cout << "succ broadcast_pcie_tensix_risc_reset write_device_memory" << std::endl;
+            }
+            if (tensix_end_translated != tensix_end_old) {
+                std::cout << "tensix_end_old " << architecture_implementation->get_grid_size_x() - 1 << " "
+                          << architecture_implementation->get_grid_size_y() - 1 - num_rows_harvested.at(target.chip)
+                          << " " << tensix_end_old.str() << " tensix_end " << tensix_end.str()
+                          << " tensix_end_translated " << tensix_end_translated.str() << std::endl;
+                log_assert(
+                    false,
+                    "Mismatch in translation for device_id: tensix_end_translated: {} {} tensix_end_old: {} {}",
+                    tensix_end_translated.x,
+                    tensix_end_translated.y,
+                    tensix_end_old.x,
+                    tensix_end_old.y);
+            } else {
+                std::cout << "succ2 broadcast_pcie_tensix_risc_reset write_device_memory" << std::endl;
+            }
+
             auto [mapped_address, tlb_size] = dev->set_dynamic_tlb(
                 tlb_index,
-                translate_chip_coord_virtual_to_translated(target.chip, target),
+                core_old,
                 address,
                 get_tlb_manager(target.chip)->dynamic_tlb_ordering_modes_.at(fallback_tlb));
             uint32_t transfer_size = std::min((uint64_t)size_in_bytes, tlb_size);
@@ -1213,9 +1334,22 @@ void Cluster::read_device_memory(
         const scoped_lock<named_mutex> lock(*get_mutex(fallback_tlb, target.chip));
         log_debug(LogSiliconDriver, "  dynamic tlb_index: {}", tlb_index);
         while (size_in_bytes > 0) {
+            auto core_old = harvested_coord_translation.at(target.chip).at(target);
+            auto core_new = translate_chip_coord_virtual_to_translated(target.chip, target);
+            if (core_old != core_new) {
+                log_assert(
+                    false,
+                    "Mismatch in translation for device_id: core_new: {} {} core_old: {} {}",
+                    core_new.x,
+                    core_new.y,
+                    core_old.x,
+                    core_old.y);
+            } else {
+                std::cout << "succ read_device_memory" << std::endl;
+            }
             auto [mapped_address, tlb_size] = dev->set_dynamic_tlb(
                 tlb_index,
-                translate_chip_coord_virtual_to_translated(target.chip, target),
+                core_old,
                 address,
                 get_tlb_manager(target.chip)->dynamic_tlb_ordering_modes_.at(fallback_tlb));
             uint32_t transfer_size = std::min((uint64_t)size_in_bytes, tlb_size);
@@ -1382,9 +1516,20 @@ tlb_configuration Cluster::get_tlb_configuration(const chip_id_t chip, CoreCoord
 
 void Cluster::configure_tlb(
     chip_id_t logical_device_id, tt_xy_pair core, int32_t tlb_index, uint64_t address, uint64_t ordering) {
-    get_tlb_manager(logical_device_id)
-        ->configure_tlb(
-            core, translate_chip_coord_virtual_to_translated(logical_device_id, core), tlb_index, address, ordering);
+    auto core_old = harvested_coord_translation.at(logical_device_id).at(core);
+    auto core_new = translate_chip_coord_virtual_to_translated(logical_device_id, core);
+    if (core_old != core_new) {
+        log_assert(
+            false,
+            "Mismatch in translation for device_id: core_new: {} {} core_old: {} {}",
+            core_new.x,
+            core_new.y,
+            core_old.x,
+            core_old.y);
+    } else {
+        std::cout << "succ configure_tlb" << std::endl;
+    }
+    get_tlb_manager(logical_device_id)->configure_tlb(core, core_old, tlb_index, address, ordering);
 }
 
 void Cluster::configure_tlb(
@@ -1470,24 +1615,46 @@ int Cluster::test_setup_interface() {
     int chip_id = *local_chip_ids_.begin();
     TTDevice* tt_device = get_tt_device(chip_id);
     if (arch_name == tt::ARCH::GRAYSKULL) {
-        uint32_t mapped_reg = tt_device
-                                  ->set_dynamic_tlb(
-                                      tt_device->get_architecture_implementation()->get_reg_tlb(),
-                                      translate_chip_coord_virtual_to_translated(chip_id, tt_xy_pair(0, 0)),
-                                      0xffb20108)
-                                  .bar_offset;
+        auto core_old = harvested_coord_translation.at(chip_id).at(tt_xy_pair(0, 0));
+        auto core_new = translate_chip_coord_virtual_to_translated(chip_id, tt_xy_pair(0, 0));
+        if (core_old != core_new) {
+            log_assert(
+                false,
+                "Mismatch in translation for device_id: core_new: {} {} core_old: {} {}",
+                core_new.x,
+                core_new.y,
+                core_old.x,
+                core_old.y);
+        } else {
+            std::cout << "succ test_setup_interface grayskull" << std::endl;
+        }
+        uint32_t mapped_reg =
+            tt_device
+                ->set_dynamic_tlb(tt_device->get_architecture_implementation()->get_reg_tlb(), core_old, 0xffb20108)
+                .bar_offset;
 
         uint32_t regval = 0;
         tt_device->read_regs(mapped_reg, 1, &regval);
         ret_val = (regval != 0xffffffff && ((regval & 0x1) == 1)) ? 0 : 1;
         return ret_val;
     } else if (arch_name == tt::ARCH::WORMHOLE_B0) {
-        uint32_t mapped_reg = tt_device
-                                  ->set_dynamic_tlb(
-                                      tt_device->get_architecture_implementation()->get_reg_tlb(),
-                                      translate_chip_coord_virtual_to_translated(chip_id, tt_xy_pair(1, 0)),
-                                      0xffb20108)
-                                  .bar_offset;
+        auto core_old = harvested_coord_translation.at(chip_id).at(tt_xy_pair(1, 0));
+        auto core_new = translate_chip_coord_virtual_to_translated(chip_id, tt_xy_pair(1, 0));
+        if (core_old != core_new) {
+            log_assert(
+                false,
+                "Mismatch in translation for device_id: core_new: {} {} core_old: {} {}",
+                core_new.x,
+                core_new.y,
+                core_old.x,
+                core_old.y);
+        } else {
+            std::cout << "succ test_setup_interface worm" << std::endl;
+        }
+        uint32_t mapped_reg =
+            tt_device
+                ->set_dynamic_tlb(tt_device->get_architecture_implementation()->get_reg_tlb(), core_old, 0xffb20108)
+                .bar_offset;
 
         uint32_t regval = 0;
         tt_device->read_regs(mapped_reg, 1, &regval);
@@ -2573,11 +2740,38 @@ void Cluster::pcie_broadcast_write(
     const uint8_t* buffer_addr = static_cast<const uint8_t*>(mem_ptr);
     const scoped_lock<named_mutex> lock(*get_mutex(fallback_tlb, chip));
     while (size_in_bytes > 0) {
+        auto core_old_start = harvested_coord_translation.at(chip).at(start);
+        auto core_new_start = translate_chip_coord_virtual_to_translated(chip, start);
+        if (core_old_start != core_new_start) {
+            log_assert(
+                false,
+                "Mismatch in translation for device_id: core_new_start: {} {} core_old_start: {} {}",
+                core_new_start.x,
+                core_new_start.y,
+                core_old_start.x,
+                core_old_start.y);
+        } else {
+            std::cout << "succ pcie_broadcast_write start" << std::endl;
+        }
+        auto core_old_end = harvested_coord_translation.at(chip).at(end);
+        auto core_new_end = translate_chip_coord_virtual_to_translated(chip, end);
+        if (core_old_end != core_new_end) {
+            log_assert(
+                false,
+                "Mismatch in translation for device_id: core_new_end: {} {} core_old_end: {} {}",
+                core_new_end.x,
+                core_new_end.y,
+                core_old_end.x,
+                core_old_end.y);
+        } else {
+            std::cout << "succ pcie_broadcast_write end" << std::endl;
+        }
+
         auto [mapped_address, tlb_size] = tt_device->set_dynamic_tlb_broadcast(
             tlb_index,
             addr,
-            translate_chip_coord_virtual_to_translated(chip, start),
-            translate_chip_coord_virtual_to_translated(chip, end),
+            core_old_start,
+            core_old_end,
             get_tlb_manager(chip)->dynamic_tlb_ordering_modes_.at(fallback_tlb));
         uint64_t transfer_size = std::min((uint64_t)size_in_bytes, tlb_size);
         tt_device->write_block(mapped_address, transfer_size, buffer_addr);
@@ -3097,8 +3291,21 @@ void Cluster::read_mmio_device_register(
     const scoped_lock<named_mutex> lock(*get_mutex(fallback_tlb, core.chip));
     log_debug(LogSiliconDriver, "  dynamic tlb_index: {}", tlb_index);
 
-    auto [mapped_address, tlb_size] = tt_device->set_dynamic_tlb(
-        tlb_index, translate_chip_coord_virtual_to_translated(core.chip, core), addr, TLB_DATA::Strict);
+    auto core_old = harvested_coord_translation.at(core.chip).at(core);
+    auto core_new = translate_chip_coord_virtual_to_translated(core.chip, core);
+    if (core_old != core_new) {
+        log_assert(
+            false,
+            "Mismatch in translation for device_id: core_new: {} {} core_old: {} {}",
+            core_new.x,
+            core_new.y,
+            core_old.x,
+            core_old.y);
+    } else {
+        std::cout << "succ read_mmio_device_register" << std::endl;
+    }
+
+    auto [mapped_address, tlb_size] = tt_device->set_dynamic_tlb(tlb_index, core_old, addr, TLB_DATA::Strict);
     // Align block to 4bytes if needed.
     auto aligned_buf = tt_4_byte_aligned_buffer(mem_ptr, size);
     tt_device->read_regs(mapped_address, aligned_buf.block_size / sizeof(std::uint32_t), aligned_buf.local_storage);
@@ -3117,8 +3324,21 @@ void Cluster::write_mmio_device_register(
     const scoped_lock<named_mutex> lock(*get_mutex(fallback_tlb, core.chip));
     log_debug(LogSiliconDriver, "  dynamic tlb_index: {}", tlb_index);
 
-    auto [mapped_address, tlb_size] = tt_device->set_dynamic_tlb(
-        tlb_index, translate_chip_coord_virtual_to_translated(core.chip, core), addr, TLB_DATA::Strict);
+    auto core_old = harvested_coord_translation.at(core.chip).at(core);
+    auto core_new = translate_chip_coord_virtual_to_translated(core.chip, core);
+    if (core_old != core_new) {
+        log_assert(
+            false,
+            "Mismatch in translation for device_id: core_new: {} {} core_old: {} {}",
+            core_new.x,
+            core_new.y,
+            core_old.x,
+            core_old.y);
+    } else {
+        std::cout << "succ write_mmio_device_register" << std::endl;
+    }
+
+    auto [mapped_address, tlb_size] = tt_device->set_dynamic_tlb(tlb_index, core_old, addr, TLB_DATA::Strict);
     // Align block to 4bytes if needed.
     auto aligned_buf = tt_4_byte_aligned_buffer(mem_ptr, size);
     if (aligned_buf.input_size != aligned_buf.block_size) {
