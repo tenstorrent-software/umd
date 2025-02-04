@@ -32,6 +32,8 @@ ChipInfo WormholeTTDevice::get_chip_info() {
 
     std::cout << "harv " << harv << std::endl;
 
+    chip_info.harvesting_masks.tensix_harvesting_mask = harv;
+
     return chip_info;
 }
 

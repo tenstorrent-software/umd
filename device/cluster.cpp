@@ -552,6 +552,141 @@ HarvestingMasks Cluster::get_harvesting_masks(
         .eth_harvesting_mask = get_eth_harvesting_mask(chip_id, perfrom_harvesting, simulated_harvesting_masks)};
 }
 
+void Cluster::ubb_eth_connections() {
+    // &fw_version,
+    //             tt_cxy_pair(chip, eth_core),
+    //             chips_.at(chip)->l1_address_params.fw_version_addr,
+    //             sizeof(uint32_t),
+    //             "LARGE_READ_TLB"
+    const uint64_t conn_info = 0x1200;
+    const uint64_t node_info = 0x1100;
+    const uint32_t eth_unknown = 0;
+    const uint32_t eth_unconnected = 1;
+    const uint32_t shelf_offset = 9;
+    const uint32_t rack_offset = 10;
+    const uint32_t base_addr = 0x1ec0;
+
+    std::unordered_map<uint64_t, chip_id_t> chip_uid_to_local_chip_id = {};
+
+     for (const auto& [chip_id, chip] : chips_) {
+        std::cout << "chip id " << chip_id << std::endl;
+
+        std::vector<CoreCoord> eth_cores = chip->get_soc_descriptor().get_cores(CoreType::ETH);
+
+        uint32_t channel = 0;
+        for (const CoreCoord& eth_core : eth_cores) {
+            uint32_t port_status;
+            read_from_device(
+                &port_status,
+                tt_cxy_pair(chip_id, eth_core.x, eth_core.y),
+                conn_info + (channel * 4),
+                sizeof(uint32_t),
+                "SMALL_READ_WRITE_TLB");
+
+            std::cout << "port status " << port_status << std::endl;
+
+            if (port_status == eth_unknown || port_status == eth_unconnected) {
+                channel++;
+                continue;
+            }
+
+            uint64_t our_board_type;
+            read_from_device(
+                &our_board_type,
+                tt_cxy_pair(chip_id, eth_core.x, eth_core.y),
+                base_addr + (64 * 4),
+                sizeof(uint64_t),
+                "SMALL_READ_WRITE_TLB");
+
+            chip_uid_to_local_chip_id.insert({our_board_type, chip_id});
+        }
+     }
+
+    for (const auto& [chip_id, chip] : chips_) {
+        std::cout << "chip id " << chip_id << std::endl;
+
+        std::vector<CoreCoord> eth_cores = chip->get_soc_descriptor().get_cores(CoreType::ETH);
+
+        uint32_t channel = 0;
+        for (const CoreCoord& eth_core : eth_cores) {
+            // const tt_xy_pair eth_core_pair = {eth_core.x, eth_core.y};
+
+            std::cout << "eth core " << eth_core.x << " " << eth_core.y << std::endl;
+
+            uint32_t port_status;
+            read_from_device(
+                &port_status,
+                tt_cxy_pair(chip_id, eth_core.x, eth_core.y),
+                conn_info + (channel * 4),
+                sizeof(uint32_t),
+                "SMALL_READ_WRITE_TLB");
+
+            std::cout << "port status " << port_status << std::endl;
+
+            if (port_status == eth_unknown || port_status == eth_unconnected) {
+                channel++;
+                continue;
+            }
+
+            // TODO(pjanevski): This may work for UBB
+            uint64_t neighbour_board_type;
+            read_from_device(
+                &neighbour_board_type,
+                tt_cxy_pair(chip_id, eth_core.x, eth_core.y),
+                base_addr + (72 * 4),
+                sizeof(uint64_t),
+                "SMALL_READ_WRITE_TLB");
+
+            std::cout << "neighbour board type " << neighbour_board_type << std::endl;
+
+            uint64_t our_board_type;
+            read_from_device(
+                &our_board_type,
+                tt_cxy_pair(chip_id, eth_core.x, eth_core.y),
+                base_addr + (64 * 4),
+                sizeof(uint64_t),
+                "SMALL_READ_WRITE_TLB");
+
+            std::cout << "our board type " << our_board_type << std::endl;
+
+            std::cout << std::hex;
+            uint32_t remote_id;
+            read_from_device(
+                &remote_id,
+                tt_cxy_pair(chip_id, eth_core.x, eth_core.y),
+                node_info + (rack_offset * 4),
+                sizeof(uint32_t),
+                "SMALL_READ_WRITE_TLB");
+
+            uint32_t remote_rack_x = remote_id & 0xFF;
+            uint32_t remote_rack_y = (remote_id >> 8) & 0xFF;
+            read_from_device(
+                &remote_id,
+                tt_cxy_pair(chip_id, eth_core.x, eth_core.y),
+                node_info + (shelf_offset * 4),
+                sizeof(uint32_t),
+                "SMALL_READ_WRITE_TLB");
+
+            uint32_t remote_shelf_x = (remote_id >> 16) & 0x3F;
+            uint32_t remote_shelf_y = (remote_id >> 22) & 0x3F;
+
+            uint32_t remote_noc_x = (remote_id >> 4) & 0x3F;
+            uint32_t remote_noc_y = (remote_id >> 10) & 0x3F;
+
+            std::cout << "remote rack " << remote_rack_x << " " << remote_rack_y << std::endl;
+            std::cout << "remote shelf " << remote_shelf_x << " " << remote_shelf_y << std::endl;
+            std::cout << "remote noc " << remote_noc_x << " " << remote_noc_y << std::endl;
+
+            std::cout << std::dec;
+
+            chip_id_t remote_chip_id = chip_uid_to_local_chip_id.at(neighbour_board_type);
+            cluster_desc->ethernet_connections[chip_id][channel] = {remote_chip_id, channel};
+
+            channel++;
+        }
+    }
+}
+
 Cluster::Cluster(
     const uint32_t& num_host_mem_ch_per_mmio_device,
     const bool skip_driver_allocs,
@@ -559,7 +694,6 @@ Cluster::Cluster(
     bool perform_harvesting,
     std::unordered_map<chip_id_t, HarvestingMasks> simulated_harvesting_masks) {
     cluster_desc = Cluster::get_cluster_descriptor();
-    // cluster_desc = tt_ClusterDescriptor::create();
 
     for (auto& chip_id : cluster_desc->get_all_chips()) {
         add_chip(
@@ -576,6 +710,8 @@ Cluster::Cluster(
         clean_system_resources,
         perform_harvesting,
         simulated_harvesting_masks);
+
+    ubb_eth_connections();
 }
 
 Cluster::Cluster(
@@ -3506,47 +3642,6 @@ std::unique_ptr<tt_ClusterDescriptor> Cluster::create_cluster_descriptor(
 
         desc->noc_translation_enabled.insert({chip_id, chip->get_chip_info().noc_translation_enabled});
         desc->harvesting_masks.insert({chip_id, chip->get_chip_info().harvesting_masks.tensix_harvesting_mask});
-
-        const std::vector<CoreCoord> eth_cores = chip->get_soc_descriptor().get_cores(CoreType::ETH);
-
-        for (size_t eth_channel = 0; eth_channel < eth_cores.size(); eth_channel++) {
-            const CoreCoord& eth_core = eth_cores[eth_channel];
-            TTDevice* tt_device = chip->get_tt_device();
-            boot_results_t boot_results;
-
-            tt_device->read_from_device(
-                (uint8_t*)&boot_results,
-                tt_xy_pair(eth_core.x, eth_core.y),
-                blackhole::BOOT_RESULTS_ADDR,
-                sizeof(boot_results));
-
-            if (boot_results.eth_status.port_status == port_status_e::PORT_UP) {
-                log_debug(LogSiliconDriver, "Eth core ({}, {}) on chip {} is active", eth_core.x, eth_core.y, chip_id);
-                // active eth core
-                const chip_info_t& local_info = boot_results.local_info;
-                const chip_info_t& remote_info = boot_results.remote_info;
-
-                chip_id_t local_chip_id = desc->get_chip_id(local_info.get_chip_uid());
-                chip_id_t remote_chip_id = desc->get_chip_id(remote_info.get_chip_uid());
-
-                // Adding a connection only one way, the other chip should add it another way.
-                desc->ethernet_connections[local_chip_id][local_info.eth_id] = {remote_chip_id, remote_info.eth_id};
-
-            } else if (boot_results.eth_status.port_status == port_status_e::PORT_DOWN) {
-                log_debug(
-                    LogSiliconDriver, "Port on eth core ({}, {}) on chip {} is down", eth_core.x, eth_core.y, chip_id);
-            } else if (boot_results.eth_status.port_status == port_status_e::PORT_UNUSED) {
-                // idle core
-                log_debug(LogSiliconDriver, "Eth core ({}, {}) on chip {} is idle");
-            } else if (boot_results.eth_status.port_status == port_status_e::PORT_UNKNOWN) {
-                log_debug(
-                    LogSiliconDriver,
-                    "Port on eth core ({}, {}) on chip {} is in unknown state",
-                    eth_core.x,
-                    eth_core.y,
-                    chip_id);
-            }
-        }
     }
 
     desc->enable_all_devices();

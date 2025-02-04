@@ -47,9 +47,14 @@ TTDevice* LocalChip::get_tt_device() { return tt_device_.get(); }
 bool LocalChip::is_mmio_capable() const { return true; }
 
 void LocalChip::wait_eth_cores_training(const uint32_t timeout_per_core) {
-    log_assert(
-        get_tt_device()->get_arch() == tt::ARCH::BLACKHOLE,
-        "Waiting for training of ETH cores is supported only for Blackhole LocalChip.");
+    // log_assert(
+    //     get_tt_device()->get_arch() == tt::ARCH::BLACKHOLE,
+    //     "Waiting for training of ETH cores is supported only for Blackhole LocalChip.");
+
+    if (get_tt_device()->get_arch() != tt::ARCH::BLACKHOLE) {
+        std::cout << "Waiting for training of ETH cores is supported only for Blackhole LocalChip." << std::endl;
+        return;
+    }
 
     const std::vector<CoreCoord> eth_cores = get_soc_descriptor().get_cores(CoreType::ETH);
     for (const CoreCoord& eth_core : eth_cores) {
