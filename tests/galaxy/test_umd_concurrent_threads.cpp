@@ -51,7 +51,6 @@ TEST(GalaxyConcurrentThreads, WriteToAllChipsL1) {
 
     Cluster device =
         Cluster(test_utils::GetAbsPath(SOC_DESC_PATH), all_devices, num_host_mem_ch_per_mmio_device, false, true);
-    const auto sdesc_per_chip = device.get_virtual_soc_descriptors();
 
     tt::umd::test::utils::set_barrier_params(device);
 
@@ -150,7 +149,6 @@ TEST(GalaxyConcurrentThreads, WriteToAllChipsDram) {
 
     Cluster device =
         Cluster(test_utils::GetAbsPath(SOC_DESC_PATH), all_devices, num_host_mem_ch_per_mmio_device, false, true);
-    const auto sdesc_per_chip = device.get_virtual_soc_descriptors();
 
     tt::umd::test::utils::set_barrier_params(device);
 
@@ -234,7 +232,6 @@ TEST(GalaxyConcurrentThreads, PushInputsWhileSignalingCluster) {
 
     Cluster device =
         Cluster(test_utils::GetAbsPath(SOC_DESC_PATH), target_devices, num_host_mem_ch_per_mmio_device, false, true);
-    const auto sdesc_per_chip = device.get_virtual_soc_descriptors();
 
     tt::umd::test::utils::set_barrier_params(device);
 

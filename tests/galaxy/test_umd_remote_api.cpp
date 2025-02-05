@@ -31,7 +31,6 @@ void run_remote_read_write_test(uint32_t vector_size, bool dram_write) {
 
     Cluster device =
         Cluster(test_utils::GetAbsPath(SOC_DESC_PATH), target_devices, num_host_mem_ch_per_mmio_device, false, true);
-    const auto sdesc_per_chip = device.get_virtual_soc_descriptors();
 
     tt::umd::test::utils::set_barrier_params(device);
 
