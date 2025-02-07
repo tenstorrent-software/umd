@@ -105,10 +105,13 @@ public:
     int eth_l1_size;
     bool noc_translation_id_enabled;
     uint64_t dram_bank_size;
+
+    // Passed through constructor.
+    bool noc_translation_enabled;
     tt::umd::HarvestingMasks harvesting_masks;
 
 private:
-    void create_coordinate_manager(const bool noc_translation_enabled, const tt::umd::HarvestingMasks harvesting_masks);
+    void create_coordinate_manager();
     void load_core_descriptors_from_device_descriptor(YAML::Node &device_descriptor_yaml);
     void load_soc_features_from_device_descriptor(YAML::Node &device_descriptor_yaml);
     void get_cores_and_grid_size_from_coordinate_manager();

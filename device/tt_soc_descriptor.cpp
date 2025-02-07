@@ -169,8 +169,7 @@ tt_xy_pair tt_SocDescriptor::calculate_grid_size(const std::vector<tt_xy_pair> &
     return {x.size(), y.size()};
 }
 
-void tt_SocDescriptor::create_coordinate_manager(
-    const bool noc_translation_enabled, const HarvestingMasks harvesting_masks) {
+void tt_SocDescriptor::create_coordinate_manager() {
     const tt_xy_pair dram_grid_size = tt_xy_pair(dram_cores.size(), dram_cores.empty() ? 0 : dram_cores[0].size());
     const tt_xy_pair arc_grid_size = tt_SocDescriptor::calculate_grid_size(arc_cores);
     const tt_xy_pair pcie_grid_size = tt_SocDescriptor::calculate_grid_size(pcie_cores);
@@ -215,7 +214,7 @@ tt::umd::CoreCoord tt_SocDescriptor::translate_coord_to(
 
 tt_SocDescriptor::tt_SocDescriptor(
     std::string device_descriptor_path, const bool noc_translation_enabled, const HarvestingMasks harvesting_masks) :
-    harvesting_masks(harvesting_masks) {
+    noc_translation_enabled(noc_translation_enabled), harvesting_masks(harvesting_masks) {
     std::ifstream fdesc(device_descriptor_path);
     if (fdesc.fail()) {
         throw std::runtime_error(
@@ -234,12 +233,7 @@ tt_SocDescriptor::tt_SocDescriptor(
     arch_name_value = trim(arch_name_value);
     arch = tt::arch_from_str(arch_name_value);
     load_soc_features_from_device_descriptor(device_descriptor_yaml);
-    log_assert(
-        noc_translation_id_enabled == noc_translation_enabled,
-        "NOC translation mismatch: value in soc descriptor yaml file '{}' vs passed value '{}'",
-        noc_translation_id_enabled,
-        noc_translation_enabled);
-    create_coordinate_manager(noc_translation_enabled, harvesting_masks);
+    create_coordinate_manager();
 }
 
 int tt_SocDescriptor::get_num_dram_channels() const {
