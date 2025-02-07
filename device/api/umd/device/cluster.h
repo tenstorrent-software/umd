@@ -535,13 +535,6 @@ public:
     }
 
     /**
-     * Get set of chip ids for all chips in the cluster.
-     */
-    virtual std::set<chip_id_t> get_target_device_ids() {
-        throw std::runtime_error("---- tt_device::get_target_device_ids is not implemented\n");
-    }
-
-    /**
      * Get all logical ids for all local chips targeted by UMD.
      */
     virtual std::set<chip_id_t> get_target_mmio_device_ids() {
@@ -554,13 +547,6 @@ public:
      */
     virtual std::set<chip_id_t> get_target_remote_device_ids() {
         throw std::runtime_error("---- tt_device::get_target_remote_device_ids is not implemented\n");
-    }
-
-    /**
-     * Get set of chip ids for all chips in the cluster.
-     */
-    virtual std::set<chip_id_t> get_target_device_ids() {
-        throw std::runtime_error("---- tt_device::get_target_device_ids is not implemented\n");
     }
 
     /**
