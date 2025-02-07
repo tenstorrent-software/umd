@@ -101,11 +101,14 @@ ChipInfo BlackholeTTDevice::get_chip_info() {
     // For now, NOC translation is disabled on all Blackhole boards.
     // TODO: read this information when it becomes available.
 
-    const uint64_t niu_cfg_addr = 0x1000A0000 + 0x100;
-    uint32_t niu_cfg;
-    read_from_device(&niu_cfg, tt_xy_pair{0, 0}, niu_cfg_addr, sizeof(uint32_t));
+    // const uint64_t niu_cfg_addr = 0x1000A0000 + 0x100;
+    // uint32_t niu_cfg;
+    // read_from_device(&niu_cfg, tt_xy_pair{0, 0}, niu_cfg_addr, sizeof(uint32_t));
 
-    chip_info.noc_translation_enabled = ((niu_cfg >> 14) & 0x1);
+    // chip_info.noc_translation_enabled = ((niu_cfg >> 14) & 0x1);
+
+    // TODO: this is hardcoded for testing NOC translation. Read this information properly.
+    chip_info.noc_translation_enabled = true;
 
     // It is expected that these entries are always available.
     chip_info.chip_uid.board_id = ((uint64_t)telemetry->read_entry(blackhole::TAG_BOARD_ID_HIGH) << 32) |
