@@ -358,4 +358,12 @@ void TTDevice::create_read_write_mutex() {
     read_write_mutex = std::make_shared<named_mutex>(open_or_create, "read_write_mutex", unrestricted_permissions);
 }
 
+TTDevice::~TTDevice() {
+    if (read_write_mutex != nullptr) {
+        read_write_mutex.reset();
+        read_write_mutex = nullptr;
+        named_mutex::remove("read_write_mutex");
+    }
+}
+
 }  // namespace tt::umd

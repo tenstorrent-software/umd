@@ -43,7 +43,7 @@ public:
      */
     static std::unique_ptr<TTDevice> create(int pci_device_number);
     TTDevice(std::unique_ptr<PCIDevice> pci_device, std::unique_ptr<architecture_implementation> architecture_impl);
-    virtual ~TTDevice() = default;
+    virtual ~TTDevice();
 
     architecture_implementation *get_architecture_implementation();
     PCIDevice *get_pci_device();
