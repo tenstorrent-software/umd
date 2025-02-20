@@ -439,6 +439,7 @@ void Cluster::construct_cluster(
 
 std::unique_ptr<Chip> Cluster::construct_chip_from_cluster(
     chip_id_t chip_id, tt_ClusterDescriptor* cluster_desc, tt_SocDescriptor& soc_desc) {
+    std::cout << "construct_chip_from_cluster1" << std::endl;
     if (cluster_desc->is_chip_mmio_capable(chip_id)) {
         return std::make_unique<LocalChip>(soc_desc, cluster_desc->get_chips_with_mmio().at(chip_id));
     } else {
@@ -452,10 +453,17 @@ std::unique_ptr<Chip> Cluster::construct_chip_from_cluster(
     tt_ClusterDescriptor* cluster_desc,
     bool perform_harvesting,
     std::unordered_map<chip_id_t, HarvestingMasks>& simulated_harvesting_masks) {
+    std::cout << "construct_chip_from_cluster2" << std::endl;
     HarvestingMasks harvesting_masks =
         get_harvesting_masks(chip_id, cluster_desc, perform_harvesting, simulated_harvesting_masks);
-    tt_SocDescriptor soc_desc =
-        tt_SocDescriptor(soc_desc_path, cluster_desc->get_noc_translation_table_en().at(chip_id), harvesting_masks);
+    const BoardType chip_board_type = cluster_desc->get_board_type(chip_id);
+    bool is_chip_remote = cluster_desc->is_chip_remote(chip_id);
+    tt_SocDescriptor soc_desc = tt_SocDescriptor(
+        soc_desc_path,
+        cluster_desc->get_noc_translation_table_en().at(chip_id),
+        harvesting_masks,
+        chip_board_type,
+        is_chip_remote);
     return construct_chip_from_cluster(chip_id, cluster_desc, soc_desc);
 }
 
@@ -464,9 +472,11 @@ std::unique_ptr<Chip> Cluster::construct_chip_from_cluster(
     tt_ClusterDescriptor* cluster_desc,
     bool perform_harvesting,
     std::unordered_map<chip_id_t, HarvestingMasks>& simulated_harvesting_masks) {
+    std::cout << "construct_chip_from_cluster3" << std::endl;
     tt::ARCH arch = cluster_desc->get_arch(chip_id);
-    const BoardType chip_board_type = cluster_desc->get_board_type(chip_id);
-    std::string soc_desc_path = tt_SocDescriptor::get_soc_descriptor_path(arch, chip_board_type);
+    BoardType chip_board_type = cluster_desc->get_board_type(chip_id);
+    bool is_chip_remote = cluster_desc->is_chip_remote(chip_id);
+    std::string soc_desc_path = tt_SocDescriptor::get_soc_descriptor_path(arch, chip_board_type, is_chip_remote);
     return construct_chip_from_cluster(
         soc_desc_path, chip_id, cluster_desc, perform_harvesting, simulated_harvesting_masks);
 }
@@ -565,6 +575,7 @@ Cluster::Cluster(
     const bool clean_system_resources,
     bool perform_harvesting,
     std::unordered_map<chip_id_t, HarvestingMasks> simulated_harvesting_masks) {
+    std::cout << "Cluster1" << std::endl;
     cluster_desc = Cluster::create_cluster_descriptor();
 
     for (auto& chip_id : cluster_desc->get_all_chips()) {
@@ -591,6 +602,7 @@ Cluster::Cluster(
     const bool clean_system_resources,
     bool perform_harvesting,
     std::unordered_map<chip_id_t, HarvestingMasks> simulated_harvesting_masks) {
+    std::cout << "Cluster2" << std::endl;
     cluster_desc = Cluster::create_cluster_descriptor();
 
     for (auto& chip_id : target_devices) {
@@ -622,6 +634,7 @@ Cluster::Cluster(
     const bool clean_system_resources,
     bool perform_harvesting,
     std::unordered_map<chip_id_t, HarvestingMasks> simulated_harvesting_masks) {
+    std::cout << "Cluster3" << std::endl;
     cluster_desc = Cluster::create_cluster_descriptor();
 
     for (auto& chip_id : target_devices) {
@@ -659,6 +672,7 @@ Cluster::Cluster(
     const bool clean_system_resources,
     bool perform_harvesting,
     const std::unordered_map<chip_id_t, HarvestingMasks> simulated_harvesting_masks) {
+    std::cout << "Cluster4" << std::endl;
     cluster_desc = Cluster::create_cluster_descriptor();
 
     for (auto& [chip_id, chip] : chips) {
