@@ -3473,6 +3473,10 @@ std::unique_ptr<tt_ClusterDescriptor> Cluster::create_cluster_descriptor(
         desc->chip_uid_to_chip_id.insert({chip->get_chip_info().chip_uid, it.first});
     }
 
+    static std::unordered_map<uint32_t, uint32_t> noc0_x_to_eth_id_mapping = {
+        {1, 0}, {16, 1}, {2, 2}, {15, 3}, {3, 4}, {14, 5}, {4, 6}, {13, 7}, {5, 8}, {12, 9}, {6, 10}, {11, 11}, {7, 12}, {10, 13}
+    };
+
     for (auto& it : chips) {
         const chip_id_t chip_id = it.first;
         const std::unique_ptr<Chip>& chip = it.second;
@@ -3488,6 +3492,14 @@ std::unique_ptr<tt_ClusterDescriptor> Cluster::create_cluster_descriptor(
         desc->harvesting_masks.insert({chip_id, chip->get_chip_info().harvesting_masks.tensix_harvesting_mask});
 
         const std::vector<CoreCoord> eth_cores = chip->get_soc_descriptor().get_cores(CoreType::ETH);
+
+        // Map eth ids from the chip to logical eth channels
+        std::array<uint32_t, 14> eth_id_to_logical_channel_mapping;
+        for (size_t eth_channel = 0; eth_channel < eth_cores.size(); eth_channel++) {
+            const CoreCoord& eth_core = eth_cores[eth_channel];
+            uint32_t eth_id = noc0_x_to_eth_id_mapping[eth_core.x];
+            eth_id_to_logical_channel_mapping[eth_id] = eth_channel;
+        }
 
         for (size_t eth_channel = 0; eth_channel < eth_cores.size(); eth_channel++) {
             const CoreCoord& eth_core = eth_cores[eth_channel];
@@ -3510,7 +3522,11 @@ std::unique_ptr<tt_ClusterDescriptor> Cluster::create_cluster_descriptor(
                 chip_id_t remote_chip_id = desc->get_chip_id(remote_info.get_chip_uid());
 
                 // Adding a connection only one way, the other chip should add it another way.
-                desc->ethernet_connections[local_chip_id][local_info.eth_id] = {remote_chip_id, remote_info.eth_id};
+                // `ethernet_connections` use logical eth channels.
+                uint32_t local_logical_eth_channel = eth_id_to_logical_channel_mapping[local_info.eth_id];
+                uint32_t remote_logical_eth_channel = eth_id_to_logical_channel_mapping[remote_info.eth_id];
+
+                desc->ethernet_connections[local_chip_id][local_logical_eth_channel] = {remote_chip_id, remote_logical_eth_channel};
 
             } else if (boot_results.eth_status.port_status == port_status_e::PORT_DOWN) {
                 log_debug(
